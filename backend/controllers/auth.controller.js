@@ -1,6 +1,5 @@
-// Handles register / login.
-// This is intentionally simple for the midpoint prototype.
-const { users, getNextUserId } = require("../data/users");
+// Handles register / login. Backed by the MySQL users table.
+const usersRepo = require("../repositories/users.repo");
 
 // Remove the password before sending a user object back to the client.
 function safeUser(user) {
@@ -9,29 +8,27 @@ function safeUser(user) {
 }
 
 // POST /api/auth/register
-function register(req, res) {
+async function register(req, res) {
   const { name, email, password, yearLevel, diploma } = req.body;
 
   if (!name || !email || !password || !yearLevel || !diploma) {
     return res.status(400).json({ error: "All fields are required." });
   }
 
-  const exists = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const exists = await usersRepo.findByEmail(email);
   if (exists) {
     return res.status(409).json({ error: "An account with this email already exists." });
   }
 
-  const newUser = {
-    id: getNextUserId(),
+  const newUser = await usersRepo.create({
     name,
     email,
-    password, // TODO: hash with bcrypt when we move to a real database.
+    password, // TODO: hash with bcrypt before final submission.
     yearLevel,
     diploma,
     role: "user",
     createdAt: new Date().toISOString().slice(0, 10),
-  };
-  users.push(newUser);
+  });
 
   // A fake token so the flow looks like a real app. Swap for JWT later.
   const token = "demo-token-" + newUser.id;
@@ -39,10 +36,10 @@ function register(req, res) {
 }
 
 // POST /api/auth/login
-function login(req, res) {
+async function login(req, res) {
   const { email, password } = req.body;
 
-  const user = users.find((u) => u.email.toLowerCase() === (email || "").toLowerCase());
+  const user = await usersRepo.findByEmail(email || "");
   if (!user || user.password !== password) {
     return res.status(401).json({ error: "Invalid email or password." });
   }
@@ -52,7 +49,8 @@ function login(req, res) {
 }
 
 // GET /api/auth/users  (helper for the demo / admin views)
-function listUsers(req, res) {
+async function listUsers(req, res) {
+  const users = await usersRepo.listAll();
   res.json(users.map(safeUser));
 }
 

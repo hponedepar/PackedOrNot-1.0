@@ -1,93 +1,130 @@
-// Admin moderation + dashboard statistics.
-const { posts } = require("../data/posts");
-const { habits } = require("../data/habits");
-const { calendarTasks } = require("../data/calendar");
-const { comments } = require("../data/comments");
-const { users } = require("../data/users");
-const { adminRequests, reports } = require("../data/adminRequests");
+// Admin moderation + dashboard statistics. Backed by MySQL.
+const postsRepo = require("../repositories/posts.repo");
+const habitsRepo = require("../repositories/habits.repo");
+const calendarRepo = require("../repositories/calendar.repo");
+const commentsRepo = require("../repositories/comments.repo");
+const usersRepo = require("../repositories/users.repo");
+const adminRepo = require("../repositories/admin.repo");
 
 // GET /api/admin/pending-posts
-function getPendingPosts(req, res) {
-  res.json(posts.filter((p) => p.status === "pending"));
+async function getPendingPosts(req, res) {
+  const pending = await postsRepo.findByStatus("pending");
+  res.json(pending);
 }
 
 // PUT /api/admin/posts/:id/approve
-function approvePost(req, res) {
-  const post = posts.find((p) => p.id === Number(req.params.id));
+async function approvePost(req, res) {
+  const id = Number(req.params.id);
+  const post = await postsRepo.findById(id);
   if (!post) return res.status(404).json({ error: "Post not found." });
-  post.status = "approved";
-  res.json(post);
+  const updated = await postsRepo.update(id, { status: "approved" });
+  res.json(updated);
 }
 
 // PUT /api/admin/posts/:id/reject
-function rejectPost(req, res) {
-  const post = posts.find((p) => p.id === Number(req.params.id));
+async function rejectPost(req, res) {
+  const id = Number(req.params.id);
+  const post = await postsRepo.findById(id);
   if (!post) return res.status(404).json({ error: "Post not found." });
-  post.status = "rejected";
-  res.json(post);
+  const updated = await postsRepo.update(id, { status: "rejected" });
+  res.json(updated);
 }
 
 // GET /api/admin/reports
-function getReports(req, res) {
-  // Attach a little post context for each open report.
-  const enriched = reports.map((r) => {
-    const post = posts.find((p) => p.id === r.postId);
-    return { ...r, postTitle: post ? post.title : "(deleted post)" };
-  });
+async function getReports(req, res) {
+  // Attach a little post context for each report (JOIN handles this).
+  const rows = await adminRepo.findReportsWithPostTitle();
+  const enriched = rows.map((r) => ({
+    ...r,
+    postTitle: r.postTitle || "(deleted post)",
+  }));
   res.json(enriched);
 }
 
 // PUT /api/admin/reports/:id/resolve
-function resolveReport(req, res) {
-  const report = reports.find((r) => r.id === Number(req.params.id));
+async function resolveReport(req, res) {
+  const id = Number(req.params.id);
+  const report = await adminRepo.findReportById(id);
   if (!report) return res.status(404).json({ error: "Report not found." });
-  report.status = "resolved";
-  res.json(report);
+  const updated = await adminRepo.updateReport(id, { status: "resolved" });
+  res.json(updated);
 }
 
 // GET /api/admin/requests
-function getRequests(req, res) {
-  res.json(adminRequests);
+async function getRequests(req, res) {
+  const requests = await adminRepo.findRequests();
+  res.json(requests);
 }
 
 // PUT /api/admin/requests/:id/approve
-function approveRequest(req, res) {
-  const request = adminRequests.find((r) => r.id === Number(req.params.id));
+async function approveRequest(req, res) {
+  const id = Number(req.params.id);
+  const request = await adminRepo.findRequestById(id);
   if (!request) return res.status(404).json({ error: "Request not found." });
-  request.status = "approved";
-  request.reviewedBy = "Admin Officer";
-  request.reviewedAt = new Date().toISOString().slice(0, 10);
+
+  const updated = await adminRepo.updateRequest(id, {
+    status: "approved",
+    reviewedBy: "Admin Officer",
+    reviewedAt: new Date().toISOString().slice(0, 10),
+  });
 
   // Promote the user to admin as well.
-  const user = users.find((u) => u.id === request.userId);
-  if (user) user.role = "admin";
+  if (request.userId) await usersRepo.updateRole(request.userId, "admin");
 
-  res.json(request);
+  res.json(updated);
 }
 
 // PUT /api/admin/requests/:id/reject
-function rejectRequest(req, res) {
-  const request = adminRequests.find((r) => r.id === Number(req.params.id));
+async function rejectRequest(req, res) {
+  const id = Number(req.params.id);
+  const request = await adminRepo.findRequestById(id);
   if (!request) return res.status(404).json({ error: "Request not found." });
-  request.status = "rejected";
-  request.reviewedBy = "Admin Officer";
-  request.reviewedAt = new Date().toISOString().slice(0, 10);
-  res.json(request);
+
+  const updated = await adminRepo.updateRequest(id, {
+    status: "rejected",
+    reviewedBy: "Admin Officer",
+    reviewedAt: new Date().toISOString().slice(0, 10),
+  });
+  res.json(updated);
 }
 
 // GET /api/admin/stats  — numbers for the admin dashboard widgets.
-function getStats(req, res) {
+async function getStats(req, res) {
+  const [
+    totalUsers,
+    totalPosts,
+    approvedPosts,
+    pendingPosts,
+    totalComments,
+    totalHabits,
+    activeHabits,
+    totalCalendarTasks,
+    openReports,
+    pendingRequests,
+  ] = await Promise.all([
+    usersRepo.count(),
+    postsRepo.count(),
+    postsRepo.countByStatus("approved"),
+    postsRepo.countByStatus("pending"),
+    commentsRepo.count(),
+    habitsRepo.count(),
+    habitsRepo.countByStatus("active"),
+    calendarRepo.count(),
+    adminRepo.countOpenReports(),
+    adminRepo.countPendingRequests(),
+  ]);
+
   res.json({
-    totalUsers: users.length,
-    totalPosts: posts.length,
-    approvedPosts: posts.filter((p) => p.status === "approved").length,
-    pendingPosts: posts.filter((p) => p.status === "pending").length,
-    totalComments: comments.length,
-    totalHabits: habits.length,
-    activeHabits: habits.filter((h) => h.status === "active").length,
-    totalCalendarTasks: calendarTasks.length,
-    openReports: reports.filter((r) => r.status === "open").length,
-    pendingRequests: adminRequests.filter((r) => r.status === "pending").length,
+    totalUsers,
+    totalPosts,
+    approvedPosts,
+    pendingPosts,
+    totalComments,
+    totalHabits,
+    activeHabits,
+    totalCalendarTasks,
+    openReports,
+    pendingRequests,
   });
 }
 

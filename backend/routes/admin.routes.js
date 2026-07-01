@@ -1,18 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const c = require("../controllers/admin.controller");
+const asyncHandler = require("../middleware/asyncHandler");
 
-router.get("/pending-posts", c.getPendingPosts);
-router.put("/posts/:id/approve", c.approvePost);
-router.put("/posts/:id/reject", c.rejectPost);
+router.get("/pending-posts", asyncHandler(c.getPendingPosts));
+router.put("/posts/:id/approve", asyncHandler(c.approvePost));
+router.put("/posts/:id/reject", asyncHandler(c.rejectPost));
 
-router.get("/reports", c.getReports);
-router.put("/reports/:id/resolve", c.resolveReport);
+router.get("/reports", asyncHandler(c.getReports));
+router.put("/reports/:id/resolve", asyncHandler(c.resolveReport));
 
-router.get("/requests", c.getRequests);
-router.put("/requests/:id/approve", c.approveRequest);
-router.put("/requests/:id/reject", c.rejectRequest);
+router.get("/requests", asyncHandler(c.getRequests));
+router.put("/requests/:id/approve", asyncHandler(c.approveRequest));
+router.put("/requests/:id/reject", asyncHandler(c.rejectRequest));
 
-router.get("/stats", c.getStats);
+router.get("/stats", asyncHandler(c.getStats));
 
 module.exports = router;

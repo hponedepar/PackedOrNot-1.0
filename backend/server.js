@@ -1,16 +1,20 @@
 // NextStep API server (Express).
 // Clean, layered structure:
-//   routes/      -> define URL endpoints
-//   controllers/ -> the logic for each endpoint
-//   data/        -> in-memory mock "tables" (swap for a real DB later)
-//   middleware/  -> shared request logging + error handling
+//   routes/        -> define URL endpoints
+//   controllers/   -> the logic for each endpoint (async)
+//   repositories/  -> data-access layer: SQL queries against MySQL
+//   config/db.js   -> the shared MySQL connection pool
+//   db/schema.sql  -> table definitions + seed data (run via `npm run db:init`)
+//   middleware/    -> shared request logging + async/error handling
 //
-// Data is stored in memory for the midpoint prototype. Restarting the
-// server resets the data back to the seeded sample content.
+// Data now lives in a real MySQL database. Connection settings come from
+// environment variables (see .env / .env.example).
 
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
+const { pool } = require("./config/db");
 const logger = require("./middleware/logger");
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 
@@ -47,7 +51,35 @@ app.use("/api/admin", adminRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`\n  NextStep API running at http://localhost:${PORT}`);
-  console.log(`  Health check:            http://localhost:${PORT}/api/health\n`);
-});
+// Wait for MySQL to accept connections before serving requests. The retry
+// loop matters under docker-compose, where the DB may still be starting up.
+async function waitForDatabase(retries = 10, delayMs = 2000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await pool.query("SELECT 1");
+      console.log("  Connected to MySQL.");
+      return;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      console.log(`  Waiting for MySQL... (${attempt}/${retries})`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+async function start() {
+  try {
+    await waitForDatabase();
+  } catch (err) {
+    console.error("  Could not connect to MySQL:", err.message);
+    console.error("  Is MySQL running and is backend/.env correct? Did you run `npm run db:init`?");
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`\n  NextStep API running at http://localhost:${PORT}`);
+    console.log(`  Health check:            http://localhost:${PORT}/api/health\n`);
+  });
+}
+
+start();
