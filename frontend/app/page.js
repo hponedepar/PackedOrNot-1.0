@@ -43,8 +43,8 @@ export default function LandingPage() {
       <section className="container" style={{ paddingBottom: 24 }}>
         <Card>
           <div className="center mb-16">
-            <h2 className="section-title" style={{ marginBottom: 4 }}>How NextStep works</h2>
-            <p className="muted small">The core loop that moves you forward.</p>
+            <h2 className="section-title" style={{ marginBottom: 4 }}>What you can do with NextStep</h2>
+            <p className="muted small">Everything you need to move forward, in one app.</p>
           </div>
           <div className="flow-rail">
             {flow.map((s) => (
@@ -58,27 +58,9 @@ export default function LandingPage() {
         </Card>
       </section>
 
-      {/* Feature highlights */}
+      {/* Call to action */}
       <section className="container" style={{ padding: "24px 24px 56px" }}>
-        <div className="grid grid-3">
-          <Card hover>
-            <div className="stat-icon mb-16" style={{ background: "var(--primary-050)", color: "var(--primary-600)" }}><BookIcon size={22} /></div>
-            <h3 className="card-title mb-8">Advice forum</h3>
-            <p className="muted small">Students share study tips, exam prep, internship-rejection recovery and more. Upvote and comment on what works.</p>
-          </Card>
-          <Card hover>
-            <div className="stat-icon mb-16" style={{ background: "var(--violet-050)", color: "var(--violet)" }}><TargetIcon size={22} /></div>
-            <h3 className="card-title mb-8">Habit &amp; study tracker</h3>
-            <p className="muted small">One click turns advice into a personal habit. Set a frequency, mark progress, and keep your streak going.</p>
-          </Card>
-          <Card hover>
-            <div className="stat-icon mb-16" style={{ background: "var(--green-050)", color: "var(--green)" }}><CalendarIcon size={22} /></div>
-            <h3 className="card-title mb-8">Calendar planner</h3>
-            <p className="muted small">Schedule habits and study plans with dates and times, then tick them off as you complete them.</p>
-          </Card>
-        </div>
-
-        <Card className="mt-24 center" style={{ background: "linear-gradient(135deg, var(--primary-050), var(--violet-050))", border: "none" }}>
+        <Card className="center" style={{ background: "linear-gradient(135deg, var(--primary-050), var(--violet-050))", border: "none" }}>
           <h2 style={{ fontSize: 24, fontWeight: 750 }}>Ready to take your next step?</h2>
           <p className="muted mt-8">Create an account and start turning advice into action.</p>
           <div className="row gap-12 mt-16" style={{ justifyContent: "center" }}>
