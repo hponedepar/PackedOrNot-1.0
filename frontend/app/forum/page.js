@@ -7,9 +7,10 @@ import Button from "@/components/Button";
 import Modal from "@/components/Modal";
 import PostCard from "@/components/PostCard";
 import ApiErrorBanner from "@/components/ApiErrorBanner";
+import Badge from "@/components/Badge";
 import { useAuth } from "@/lib/auth";
-import { PostsAPI, HabitsAPI, CommentsAPI } from "@/lib/api";
-import { PlusIcon, SearchIcon } from "@/lib/icons";
+import { PostsAPI, HabitsAPI, CommentsAPI, AdminAPI } from "@/lib/api";
+import { PlusIcon, SearchIcon, CheckIcon, XIcon, ShieldIcon } from "@/lib/icons";
 
 const CATEGORIES = [
   "All", "Study habits", "Exam preparation", "Time management",
@@ -22,10 +23,13 @@ export default function ForumPage() {
   const router = useRouter();
 
   const [posts, setPosts] = useState([]);
+  const [pending, setPending] = useState([]); // admin only: posts awaiting review
   const [category, setCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const isAdmin = user?.role === "admin";
 
   // Create-post modal state
   const [showCreate, setShowCreate] = useState(false);
@@ -46,12 +50,24 @@ export default function ForumPage() {
     try {
       const data = await PostsAPI.list(category, search);
       setPosts(data);
+      // Admins moderate right here on the forum: pending posts load alongside.
+      if (user?.role === "admin") setPending(await AdminAPI.pendingPosts());
     } catch (err) { setError(err.message); }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [category]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [category, user]);
 
   function flash(msg) { setNotice(msg); setTimeout(() => setNotice(""), 2500); }
+
+  // ---- Admin: approve / reject pending posts right here on the forum ----
+  async function approvePending(post) {
+    try { await AdminAPI.approvePost(post.id); flash(`Approved: "${post.title}"`); load(); }
+    catch (err) { setError(err.message); }
+  }
+  async function rejectPending(post) {
+    try { await AdminAPI.rejectPost(post.id); flash(`Rejected: "${post.title}"`); load(); }
+    catch (err) { setError(err.message); }
+  }
 
   async function handleUpvote(post) {
     try {
@@ -124,6 +140,35 @@ export default function ForumPage() {
     >
       <ApiErrorBanner error={error} onRetry={load} />
       {notice && <div className="banner mb-16" style={{ background: "var(--green-050)", color: "var(--green)", borderColor: "rgba(16,185,129,0.3)" }}>{notice}</div>}
+
+      {/* Admin only: pending posts to moderate, right where the action is. */}
+      {isAdmin && pending.length > 0 && (
+        <Card className="mb-24" style={{ borderColor: "rgba(245, 158, 11, 0.45)" }}>
+          <div className="row mb-16" style={{ justifyContent: "space-between" }}>
+            <h2 className="section-title row gap-8" style={{ marginBottom: 0 }}>
+              <ShieldIcon size={18} /> Pending requests <Badge color="amber">{pending.length}</Badge>
+            </h2>
+            <span className="small muted">Visible to admins only</span>
+          </div>
+          <div className="stack gap-12">
+            {pending.map((p) => (
+              <div key={p.id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontWeight: 650, fontSize: 14 }}>{p.title}</div>
+                <div className="small muted">{p.category} &middot; by {p.author} ({p.authorYear})</div>
+                <p className="small mt-8 mb-16">{p.content}</p>
+                <div className="row gap-8">
+                  <Button size="sm" variant="success" onClick={() => approvePending(p)}>
+                    <CheckIcon size={15} /> Approve
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => rejectPending(p)}>
+                    <XIcon size={15} /> Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Search + category filter */}
       <Card className="mb-24">

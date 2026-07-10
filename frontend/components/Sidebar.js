@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useMode } from "@/lib/mode";
-import SettingsSheet from "./SettingsSheet";
-import { HomeIcon, ForumIcon, TrackerIcon, CalendarIcon, ShieldIcon, BookIcon, ClockIcon, SparkIcon, SettingsIcon } from "@/lib/icons";
+import { HomeIcon, ForumIcon, TrackerIcon, CalendarIcon, ShieldIcon, BookIcon, ClockIcon, SparkIcon, SettingsIcon, ChevronDownIcon } from "@/lib/icons";
 
 // Each link declares which app modes it belongs to (see lib/mode.js) and its
 // own "highlighter" accent — every feature has a colour of its own, like a
@@ -20,11 +19,22 @@ const links = [
   { href: "/help", label: "Study Help", icon: SparkIcon, modes: ["study"], fg: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },
 ];
 
+// Sub-pages of Settings and Privacy, shown as a dropdown under the button.
+const settingsSections = [
+  { slug: "account", label: "Account" },
+  { slug: "privacy", label: "Privacy" },
+  { slug: "notifications", label: "Notifications" },
+  { slug: "appearance", label: "Appearance" },
+  { slug: "security", label: "Security" },
+  { slug: "about", label: "About & Support" },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { mode } = useMode();
-  const [showSettings, setShowSettings] = useState(false);
+  // Keep the dropdown open while the user is on any settings page.
+  const [settingsOpen, setSettingsOpen] = useState(pathname.startsWith("/settings"));
 
   return (
     <aside className="sidebar">
@@ -41,15 +51,30 @@ export default function Sidebar() {
         </Link>
       ))}
 
-      {/* Settings and Privacy — sits right below the menu links; opens the bottom sheet. */}
+      {/* Settings and Privacy — expands into a dropdown of sub-pages. */}
       <button
-        className="nav-link"
-        onClick={() => setShowSettings(true)}
+        className={"nav-link" + (pathname.startsWith("/settings") ? " active" : "")}
+        onClick={() => setSettingsOpen((o) => !o)}
+        aria-expanded={settingsOpen}
         style={{ "--tile-fg": "#64748b", "--tile-bg": "rgba(100, 116, 139, 0.12)" }}
       >
         <span className="ico"><SettingsIcon size={17} /></span>
         Settings and Privacy
+        <span className={"chev" + (settingsOpen ? " open" : "")}><ChevronDownIcon size={15} /></span>
       </button>
+      {settingsOpen && (
+        <div className="sub-nav">
+          {settingsSections.map(({ slug, label }) => (
+            <Link
+              key={slug}
+              href={`/settings/${slug}`}
+              className={"sub-link" + (pathname === `/settings/${slug}` ? " active" : "")}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Admin link only shows for admin accounts. */}
       {user?.role === "admin" && (
@@ -65,8 +90,6 @@ export default function Sidebar() {
           </Link>
         </>
       )}
-
-      <SettingsSheet open={showSettings} onClose={() => setShowSettings(false)} />
     </aside>
   );
 }

@@ -14,7 +14,7 @@ import Button from "@/components/Button";
 import ApiErrorBanner from "@/components/ApiErrorBanner";
 import { useAuth } from "@/lib/auth";
 import { HabitsAPI, FocusAPI } from "@/lib/api";
-import { readPrefs } from "@/components/SettingsSheet";
+import { readPrefs } from "@/lib/prefs";
 import { PlayIcon, PauseIcon, ClockIcon, CheckIcon } from "@/lib/icons";
 
 const DURATIONS = [15, 25, 45, 60]; // minutes

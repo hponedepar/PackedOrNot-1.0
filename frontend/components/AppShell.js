@@ -25,6 +25,7 @@ const ACCENTS = {
   "/timer": "#e11d48",
   "/help": "#d97706",
   "/admin": "#dc2626",
+  "/settings": "#64748b",
 };
 
 export default function AppShell({ title, subtitle, actions, children, adminOnly = false }) {
