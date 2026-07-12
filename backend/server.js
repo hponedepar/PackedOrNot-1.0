@@ -24,6 +24,7 @@ const postsRoutes = require("./routes/posts.routes");
 const commentsRoutes = require("./routes/comments.routes");
 const habitsRoutes = require("./routes/habits.routes");
 const calendarRoutes = require("./routes/calendar.routes");
+const focusRoutes = require("./routes/focus.routes");
 const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
@@ -45,6 +46,7 @@ app.use("/api/posts", postsRoutes);
 app.use("/api/comments", commentsRoutes);
 app.use("/api/habits", habitsRoutes);
 app.use("/api/calendar", calendarRoutes);
+app.use("/api/focus-sessions", focusRoutes);
 app.use("/api/admin", adminRoutes);
 
 // --- 404 + error handling (must be last) ---

@@ -65,4 +65,16 @@ async function countByStatus(status) {
   return rows[0].n;
 }
 
-module.exports = { find, findById, create, update, remove, count, countByStatus };
+async function incrementProgress(id, amount = 10) {
+  const habit = await findById(id);
+
+  if (!habit) return null;
+
+  const newProgress = Math.min(100, habit.progress + amount);
+
+  return update(id, {
+    progress: newProgress,
+  });
+}
+
+module.exports = { find, findById, create, update, remove, count, countByStatus, incrementProgress, };

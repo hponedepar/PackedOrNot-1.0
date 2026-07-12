@@ -9,6 +9,7 @@ CREATE DATABASE IF NOT EXISTS nextstep
 USE nextstep;
 
 -- Drop in an order that respects the (logical) foreign keys.
+DROP TABLE IF EXISTS focus_sessions;
 DROP TABLE IF EXISTS calendar_tasks;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS reports;
@@ -85,6 +86,15 @@ CREATE TABLE calendar_tasks (
   completed TINYINT(1) NOT NULL DEFAULT 0
 );
 
+CREATE TABLE focus_sessions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT NOT NULL,
+  habitId INT NULL,
+  habitName VARCHAR(255) NOT NULL,
+  minutes INT NOT NULL,
+  date DATE NOT NULL
+);
+
 CREATE TABLE admin_requests (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   userId     INT,
@@ -147,6 +157,11 @@ INSERT INTO calendar_tasks (id, userId, habitId, title, date, time, completed) V
   (3, 1, NULL, 'Build one small project (weekly)', '2026-07-03', '19:00', 0),
   (4, 1, 4,    'Recap yesterday''s topic',       '2026-07-02', '20:00', 0),
   (5, 1, 2,    'Solve one coding problem',       '2026-07-04', '08:00', 0);
+
+INSERT INTO focus_sessions (id, userId, habitId, habitName, minutes, date) VALUES
+(1,1,2,'Solve one coding problem each weekday',25,'2026-07-06'),
+(2,1,4,'Recap yesterday''s topic for 20 minutes',45,'2026-07-07'),
+(3,1,NULL,'Free focus',30,'2026-07-08');
 
 INSERT INTO admin_requests (id, userId, name, reason, status, reviewedBy, reviewedAt) VALUES
   (1, 2, 'Priya Nair', 'I help moderate the study-habits category and would like moderator access.', 'pending', NULL, NULL);
