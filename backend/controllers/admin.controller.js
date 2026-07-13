@@ -6,6 +6,12 @@ const commentsRepo = require("../repositories/comments.repo");
 const usersRepo = require("../repositories/users.repo");
 const adminRepo = require("../repositories/admin.repo");
 
+// GET /api/admin/users
+async function getUsers(req, res) {
+  const users = await usersRepo.listAll();
+  res.json(users.map(({ password, ...u }) => u));
+}
+
 // GET /api/admin/pending-posts
 async function getPendingPosts(req, res) {
   const pending = await postsRepo.findByStatus("pending");
@@ -138,4 +144,5 @@ module.exports = {
   approveRequest,
   rejectRequest,
   getStats,
+  getUsers,
 };

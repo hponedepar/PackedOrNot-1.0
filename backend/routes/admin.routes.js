@@ -15,5 +15,6 @@ router.put("/requests/:id/approve", asyncHandler(c.approveRequest));
 router.put("/requests/:id/reject", asyncHandler(c.rejectRequest));
 
 router.get("/stats", asyncHandler(c.getStats));
+router.get("/users", asyncHandler(c.getUsers));
 
 module.exports = router;

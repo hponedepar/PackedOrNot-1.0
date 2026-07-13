@@ -95,6 +95,7 @@ export const HelpAPI = {
 };
 
 export const AdminAPI = {
+  users: () => api.get("/api/admin/users"),
   pendingPosts: () => api.get("/api/admin/pending-posts"),
   approvePost: (id) => api.put(`/api/admin/posts/${id}/approve`),
   rejectPost: (id) => api.put(`/api/admin/posts/${id}/reject`),
