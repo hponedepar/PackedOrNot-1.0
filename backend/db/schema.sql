@@ -8,17 +8,18 @@
 -- Postgres folds unquoted names to lowercase, so camelCase columns are
 -- double-quoted everywhere ("yearLevel", "createdAt", ...).
 
--- Drop in an order that respects the (logical) foreign keys.
-DROP TABLE IF EXISTS recommendations;
-DROP TABLE IF EXISTS netacad_courses;
-DROP TABLE IF EXISTS calendar_tasks;
-DROP TABLE IF EXISTS comments;
-DROP TABLE IF EXISTS reports;
-DROP TABLE IF EXISTS habits;
-DROP TABLE IF EXISTS admin_requests;
-DROP TABLE IF EXISTS post_upvotes;
-DROP TABLE IF EXISTS posts;
-DROP TABLE IF EXISTS users;
+-- CASCADE so it works even if a teammate created these tables with real
+-- foreign-key constraints; we recreate everything from scratch anyway.
+DROP TABLE IF EXISTS recommendations CASCADE;
+DROP TABLE IF EXISTS netacad_courses CASCADE;
+DROP TABLE IF EXISTS calendar_tasks CASCADE;
+DROP TABLE IF EXISTS comments CASCADE;
+DROP TABLE IF EXISTS reports CASCADE;
+DROP TABLE IF EXISTS habits CASCADE;
+DROP TABLE IF EXISTS admin_requests CASCADE;
+DROP TABLE IF EXISTS post_upvotes CASCADE;
+DROP TABLE IF EXISTS posts CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- ---- Tables -------------------------------------------------------------
 
