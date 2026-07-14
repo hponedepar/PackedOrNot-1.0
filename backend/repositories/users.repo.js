@@ -34,9 +34,22 @@ async function updateRole(id, role) {
   return findById(id);
 }
 
+// Ban / unban a user (isBanned column added by schema.sql).
+async function setBanned(id, isBanned) {
+  await pool.query('UPDATE users SET "isBanned" = ? WHERE id = ?', [isBanned, id]);
+  return findById(id);
+}
+
+async function remove(id) {
+  const user = await findById(id);
+  if (!user) return null;
+  await pool.query("DELETE FROM users WHERE id = ?", [id]);
+  return user;
+}
+
 async function count() {
   const [rows] = await pool.query("SELECT COUNT(*)::int AS n FROM users");
   return rows[0].n;
 }
 
-module.exports = { findByEmail, findById, listAll, create, updateRole, count };
+module.exports = { findByEmail, findById, listAll, create, updateRole, setBanned, remove, count };

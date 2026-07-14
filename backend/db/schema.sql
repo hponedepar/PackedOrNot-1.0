@@ -31,6 +31,7 @@ CREATE TABLE users (
   "yearLevel" VARCHAR(40),
   diploma     VARCHAR(160),
   role        VARCHAR(20) NOT NULL DEFAULT 'user',      -- 'user' | 'admin'
+  "isBanned"  BOOLEAN NOT NULL DEFAULT FALSE,           -- admin can ban/unban users
   "createdAt" DATE
 );
 

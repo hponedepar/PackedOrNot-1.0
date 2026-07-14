@@ -10,12 +10,14 @@ import Badge, { StatusBadge } from "@/components/Badge";
 import DashboardStatCard from "@/components/DashboardStatCard";
 import ApiErrorBanner from "@/components/ApiErrorBanner";
 import { AdminAPI } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import {
   UsersIcon, ForumIcon, ChatIcon, TargetIcon,
   CheckIcon, XIcon, FlagIcon, ShieldIcon,
 } from "@/lib/icons";
 
 export default function AdminPage() {
+  const { user: me } = useAuth();   // the logged-in admin (for isSelf + self-action guards)
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
   const [reports, setReports] = useState([]);
@@ -42,7 +44,7 @@ export default function AdminPage() {
         AdminAPI.pendingPosts(),
         AdminAPI.reports(),
         AdminAPI.requests(),
-        AdminAPI.users(),
+        AdminAPI.users(me?.id),
       ]);
       setStats(s);
       setPending(p);
@@ -56,13 +58,17 @@ export default function AdminPage() {
     }
   }
 
+  // Load once the logged-in admin (me) is known, so the users call includes
+  // ?me=<id> and each row gets the correct isSelf flag. Waiting for me?.id
+  // also avoids a double-fetch race (a stale no-me response overwriting it).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!me?.id) return;
     load();
     // Cleanup: clear any pending flash timeout if the user leaves the page,
     // so we never call setNotice on an unmounted component.
     return () => clearTimeout(noticeTimer.current);
-  }, []);
+  }, [me?.id]);
 
   function flash(msg) {
     setNotice(msg);
@@ -136,7 +142,7 @@ export default function AdminPage() {
   // and DELETE /admin/users/:id. Both must check the caller is an admin.
   function toggleBan(user) {
     withBusy(user.id, async () => {
-      await AdminAPI.toggleBan(user.id);
+      await AdminAPI.toggleBan(user.id, me?.id);
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, isBanned: !u.isBanned } : u))
       );
@@ -147,7 +153,7 @@ export default function AdminPage() {
     // Native confirm() is fine for a school project; a modal would be nicer.
     if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return;
     withBusy(user.id, async () => {
-      await AdminAPI.deleteUser(user.id);
+      await AdminAPI.deleteUser(user.id, me?.id);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
       flash(`${user.name} deleted.`);
       refreshStats();
@@ -164,7 +170,7 @@ export default function AdminPage() {
     const promoting = user.role !== "admin";
     if (!promoting && !window.confirm(`Remove admin rights from ${user.name}?`)) return;
     withBusy(user.id, async () => {
-      await AdminAPI.setRole(user.id, promoting ? "admin" : "user");
+      await AdminAPI.setRole(user.id, promoting ? "admin" : "user", me?.id);
       setUsers((prev) =>
         prev.map((u) =>
           u.id === user.id ? { ...u, role: promoting ? "admin" : "user" } : u

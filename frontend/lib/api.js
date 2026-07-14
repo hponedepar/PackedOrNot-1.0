@@ -23,6 +23,7 @@ export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: "POST", body: JSON.stringify(body) }),
   put: (path, body) => request(path, { method: "PUT", body: JSON.stringify(body || {}) }),
+  patch: (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body || {}) }),
   del: (path, body) => request(path, { method: "DELETE", body: JSON.stringify(body || {}) }),
   baseUrl: API_URL,
 };
@@ -95,7 +96,12 @@ export const HelpAPI = {
 };
 
 export const AdminAPI = {
-  users: () => api.get("/api/admin/users"),
+  // `me` is the logged-in admin's id, so the API can flag their own row (isSelf)
+  // and refuse self-ban / self-delete / self-demote on the server.
+  users: (me) => api.get(`/api/admin/users${me ? `?me=${me}` : ""}`),
+  setRole: (id, role, me) => api.patch(`/api/admin/users/${id}/role`, { role, me }),
+  toggleBan: (id, me) => api.post(`/api/admin/users/${id}/ban`, { me }),
+  deleteUser: (id, me) => api.del(`/api/admin/users/${id}`, { me }),
   pendingPosts: () => api.get("/api/admin/pending-posts"),
   approvePost: (id) => api.put(`/api/admin/posts/${id}/approve`),
   rejectPost: (id) => api.put(`/api/admin/posts/${id}/reject`),

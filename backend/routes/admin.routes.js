@@ -15,6 +15,10 @@ router.put("/requests/:id/approve", asyncHandler(c.approveRequest));
 router.put("/requests/:id/reject", asyncHandler(c.rejectRequest));
 
 router.get("/stats", asyncHandler(c.getStats));
+
 router.get("/users", asyncHandler(c.getUsers));
+router.patch("/users/:id/role", asyncHandler(c.setUserRole));
+router.post("/users/:id/ban", asyncHandler(c.banUser));
+router.delete("/users/:id", asyncHandler(c.deleteUser));
 
 module.exports = router;

@@ -6,10 +6,62 @@ const commentsRepo = require("../repositories/comments.repo");
 const usersRepo = require("../repositories/users.repo");
 const adminRepo = require("../repositories/admin.repo");
 
-// GET /api/admin/users
+// GET /api/admin/users?me=<callerId>
+// Returns every user (without password) plus the fields the admin page reads:
+//   joinedAt (from createdAt), isBanned, and isSelf (the caller's own row).
 async function getUsers(req, res) {
+  const me = Number(req.query.me);
   const users = await usersRepo.listAll();
-  res.json(users.map(({ password, ...u }) => u));
+  res.json(
+    users.map(({ password, createdAt, ...u }) => ({
+      ...u,
+      joinedAt: createdAt,
+      isBanned: Boolean(u.isBanned),
+      isSelf: u.id === me,
+    }))
+  );
+}
+
+// PATCH /api/admin/users/:id/role   body { role }
+async function setUserRole(req, res) {
+  const id = Number(req.params.id);
+  const { role, me } = req.body;
+  if (role !== "user" && role !== "admin") {
+    return res.status(400).json({ error: "Role must be 'user' or 'admin'." });
+  }
+  // Never let an admin change their own role (would risk locking everyone out).
+  if (Number(me) === id) {
+    return res.status(403).json({ error: "You cannot change your own role." });
+  }
+  const user = await usersRepo.findById(id);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  const { password, ...updated } = await usersRepo.updateRole(id, role);
+  res.json(updated);
+}
+
+// POST /api/admin/users/:id/ban   body { me }  — toggles the ban flag.
+async function banUser(req, res) {
+  const id = Number(req.params.id);
+  const { me } = req.body;
+  if (Number(me) === id) {
+    return res.status(403).json({ error: "You cannot ban yourself." });
+  }
+  const user = await usersRepo.findById(id);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  const { password, ...updated } = await usersRepo.setBanned(id, !user.isBanned);
+  res.json(updated);
+}
+
+// DELETE /api/admin/users/:id   body { me }
+async function deleteUser(req, res) {
+  const id = Number(req.params.id);
+  const { me } = req.body;
+  if (Number(me) === id) {
+    return res.status(403).json({ error: "You cannot delete your own account." });
+  }
+  const removed = await usersRepo.remove(id);
+  if (!removed) return res.status(404).json({ error: "User not found." });
+  res.json({ message: "User deleted.", id });
 }
 
 // GET /api/admin/pending-posts
@@ -145,4 +197,7 @@ module.exports = {
   rejectRequest,
   getStats,
   getUsers,
+  setUserRole,
+  banUser,
+  deleteUser,
 };
