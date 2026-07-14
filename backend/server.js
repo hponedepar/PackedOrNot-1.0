@@ -28,6 +28,7 @@ const adminRoutes = require("./routes/admin.routes");
 const helpRoutes = require("./routes/help.routes"); // Done by Khaing Khant Zaw
 const plansRoutes = require("./routes/plans.routes"); // Study Plans
 const focusRoutes = require("./routes/focus.routes"); // Focus Timer sessions
+const emailOtpRoutes = require("./routes/emailOtp.routes"); // Sign-up email verification
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -52,6 +53,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/help", helpRoutes); // Study Help — done by Khaing Khant Zaw
 app.use("/api/plans", plansRoutes);
 app.use("/api/focus-sessions", focusRoutes);
+app.use("/api/email-otp", emailOtpRoutes);
 
 // --- 404 + error handling (must be last) ---
 app.use(notFound);

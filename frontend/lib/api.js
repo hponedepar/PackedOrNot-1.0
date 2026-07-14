@@ -14,7 +14,9 @@ async function request(path, options = {}) {
 
   if (!res.ok) {
     const message = (data && data.error) || `Request failed (${res.status})`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status; // so callers can special-case e.g. 503 (not configured)
+    throw err;
   }
   return data;
 }
@@ -32,6 +34,14 @@ export const api = {
 export const AuthAPI = {
   login: (email, password) => api.post("/api/auth/login", { email, password }),
   register: (payload) => api.post("/api/auth/register", payload),
+};
+
+// Sign-up email verification (OTP). send() returns a signed token; verify()
+// checks the code against it. A 503 means email isn't configured -> the
+// sign-up page falls back to an on-screen demo code.
+export const EmailOtpAPI = {
+  send: (email) => api.post("/api/email-otp/send", { email }),
+  verify: (email, code, token) => api.post("/api/email-otp/verify", { email, code, token }),
 };
 
 export const PostsAPI = {

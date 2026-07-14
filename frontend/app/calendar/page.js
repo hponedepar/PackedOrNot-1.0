@@ -170,6 +170,13 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {/* Legend so the two task colours are clear (WK) */}
+      <div className="row gap-16 mb-16" style={{ flexWrap: "wrap" }}>
+        <span className="row gap-8 small muted"><span className="cal-swatch plan" /> Study plans</span>
+        <span className="row gap-8 small muted"><span className="cal-swatch habit" /> Habits</span>
+        <span className="row gap-8 small muted"><span className="cal-swatch done" /> Done</span>
+      </div>
+
       {/* The calendar grid (7 columns; 1 row for a week, up to 6 for a month) */}
       <div className={"cal-grid" + (view === "month" ? " month" : "")}>
         {cells.map((d) => (
@@ -180,9 +187,13 @@ export default function CalendarPage() {
             </div>
             {d.tasks.length === 0 && <span className="small muted">—</span>}
             {d.tasks.map((t) => (
+              // Colour by source (WK): study-plan tasks are purple, habit tasks
+              // are orange, plain tasks are neutral. Fixed colours (not the mode
+              // theme) so study is always purple and habit always orange, in
+              // both the study and habit calendars.
               <span
                 key={t.id}
-                className={"cal-chip" + (t.completed ? " done" : "")}
+                className={"cal-chip" + (t.planId ? " plan" : t.habitId ? " habit" : "") + (t.completed ? " done" : "")}
                 title={t.completed ? "Click to mark not done" : "Click to mark done"}
                 onClick={() => toggle(t)}
               >

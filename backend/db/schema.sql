@@ -178,15 +178,21 @@ INSERT INTO users (id, name, email, password, "yearLevel", diploma, role, "creat
   -- Year 1 student who asks for help on the forum (Done by Andrea Ho).
   (4, 'Bryan Lee',     'bryan@rp.edu.sg', 'password123', 'Year 1', 'Diploma in Information Technology', 'user',  '2026-01-08');
 
--- A single, clean demo thread: Bryan's question + Priya's reply (Done by Andrea Ho).
+-- Demo forum threads: a programming question and a stress-management question,
+-- each with a senior's reply (Done by Andrea Ho).
 INSERT INTO posts (id, "userId", author, "authorYear", title, category, content, "suggestedAction", status, upvotes, downvotes, "createdAt") VALUES
   (1, 4, 'Bryan Lee', 'Year 1', 'Struggling with Programming Fundamentals — any senior advice?', 'Programming practice',
    'Hi I am year 1 student so right now I am having problem with the programming fundamental course mostly right now. Can any seniors suggest any advices or solutions for this?',
-   NULL, 'approved', 12, 1, '2026-07-12');
+   NULL, 'approved', 12, 1, '2026-07-12'),
+  (2, 4, 'Bryan Lee', 'Year 1', 'How do you guys manage stress?', 'Study habits',
+   'Hi, I am year 1 and I just want to ask for like how you guys manage the stress??',
+   NULL, 'approved', 9, 0, '2026-07-14');
 
 INSERT INTO comments (id, "postId", "userId", author, "authorYear", text, likes, dislikes, "createdAt") VALUES
-  -- The senior's reply to Bryan that becomes a study plan in the demo.
-  (1, 1, 2, 'Priya Nair', 'Year 3', 'HII!! I just want to say that it is totally normal to struggle because I was in the same boat as you. At my time, I just went through this website called W3 School website. There they have like all these beginner programmes for python. I just practise using that. Hope this helps!.', 15, 0, '2026-07-12');
+  -- The senior's reply to Bryan's programming question (becomes a study plan in the demo).
+  (1, 1, 2, 'Priya Nair', 'Year 3', 'HII!! I just want to say that it is totally normal to struggle because I was in the same boat as you. At my time, I just went through this website called W3 School website. There they have like all these beginner programmes for python. I just practise using that. Hope this helps!.', 15, 0, '2026-07-12'),
+  -- The senior's reply to the stress question.
+  (2, 2, 2, 'Priya Nair', 'Year 3', 'FOr me meditation works the same for me or doing what you love. For my case is just playing chess.Hope this helps', 11, 0, '2026-07-14');
 
 INSERT INTO habits (id, "userId", "sourcePostId", name, frequency, status, progress, "createdAt") VALUES
   (1, 1, 3,    'Start hard tasks with 2 focused minutes', 'Daily',    'active',    60, '2026-02-19'),
@@ -194,12 +200,16 @@ INSERT INTO habits (id, "userId", "sourcePostId", name, frequency, status, progr
   (3, 1, NULL, 'Read 10 pages of a textbook',             'Daily',    'paused',    25, '2026-02-22'),
   (4, 1, 2,    'Recap yesterday''s topic for 20 minutes', 'Daily',    'completed', 100, '2026-02-16');
 
-INSERT INTO calendar_tasks (id, "userId", "habitId", title, date, time, completed) VALUES
-  (1, 1, 2,    'Solve one coding problem',       '2026-07-01', '08:00', FALSE),
-  (2, 1, 1,    '2-minute start on assignment',   '2026-07-01', '14:00', TRUE),
-  (3, 1, NULL, 'Build one small project (weekly)', '2026-07-03', '19:00', FALSE),
-  (4, 1, 4,    'Recap yesterday''s topic',       '2026-07-02', '20:00', FALSE),
-  (5, 1, 2,    'Solve one coding problem',       '2026-07-04', '08:00', FALSE);
+-- Calendar tasks: some come from habits (orange), some from study plans
+-- (purple), some are plain (WK). habitId / planId link them to their source.
+INSERT INTO calendar_tasks (id, "userId", "habitId", "planId", title, date, time, completed) VALUES
+  (1, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-01', '08:00', FALSE),
+  (2, 1, 1,    NULL, '2-minute start on assignment',     '2026-07-01', '14:00', TRUE),
+  (3, 1, NULL, NULL, 'Build one small project (weekly)', '2026-07-03', '19:00', FALSE),
+  (4, 1, 4,    NULL, 'Recap yesterday''s topic',         '2026-07-02', '20:00', FALSE),
+  (5, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-04', '08:00', FALSE),
+  (6, 1, NULL, 1,    'Biology revision',                 '2026-07-02', '16:00', FALSE),
+  (7, 1, NULL, 2,    'Operating Systems review',         '2026-07-03', '10:00', FALSE);
 
 INSERT INTO admin_requests (id, "userId", name, reason, status, "reviewedBy", "reviewedAt") VALUES
   (1, 2, 'Priya Nair', 'I help moderate the study-habits category and would like moderator access.', 'pending', NULL, NULL);

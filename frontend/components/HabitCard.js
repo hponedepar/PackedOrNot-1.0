@@ -3,10 +3,11 @@ import React from "react";
 import Card from "./Card";
 import Button from "./Button";
 import { StatusBadge } from "./Badge";
-import { CheckIcon, TargetIcon } from "@/lib/icons";
+import { CheckIcon, TargetIcon, CalendarIcon } from "@/lib/icons";
 
-// A single habit / study-plan card with a progress bar and quick actions.
-export default function HabitCard({ habit, onComplete, onTogglePause, onDelete, fromAdvice }) {
+// A single habit card with a progress bar and quick actions.
+// `onSchedule` (when given) shows an "Add to calendar" button.
+export default function HabitCard({ habit, onComplete, onTogglePause, onDelete, onSchedule, fromAdvice }) {
   return (
     <Card hover>
       <div className="row" style={{ justifyContent: "space-between", gap: 10 }}>
@@ -43,6 +44,11 @@ export default function HabitCard({ habit, onComplete, onTogglePause, onDelete, 
         {habit.status !== "completed" && (
           <Button size="sm" onClick={() => onTogglePause && onTogglePause(habit)}>
             {habit.status === "paused" ? "Resume" : "Pause"}
+          </Button>
+        )}
+        {onSchedule && (
+          <Button size="sm" variant="primary" onClick={() => onSchedule(habit)}>
+            <CalendarIcon size={15} /> Add to calendar
           </Button>
         )}
         <Button size="sm" variant="danger" onClick={() => onDelete && onDelete(habit)}>Delete</Button>

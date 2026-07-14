@@ -412,7 +412,17 @@ html[data-mode="habit"] body {
   font-size: 11.5px; padding: 5px 8px; border-radius: 8px; background: var(--primary-050);
   color: var(--primary-700); font-weight: 650; cursor: pointer; line-height: 1.2;
 }
+/* Colour tasks by source — fixed colours so study is always purple and habit
+   always orange, in both the study and habit calendars (WK). */
+.cal-chip.plan  { background: rgba(124, 58, 237, 0.14); color: #6d28d9; }
+.cal-chip.habit { background: rgba(234, 88, 12, 0.14);  color: #c2410c; }
 .cal-chip.done { background: var(--green-050); color: var(--green); text-decoration: line-through; opacity: .8; }
+
+/* Little legend swatches */
+.cal-swatch { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.cal-swatch.plan  { background: #7c3aed; }
+.cal-swatch.habit { background: #ea580c; }
+.cal-swatch.done  { background: var(--green); }
 
 /* Month view: shorter cells (up to 6 rows) + dim the days outside the month (WK) */
 .cal-grid.month .cal-day { min-height: 96px; padding: 8px; }

@@ -1,0 +1,17 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- NextStep favicon: the app's logo — three ascending "step / growth" bars
+       inside the brand gradient tile. Next.js App Router auto-uses this as the
+       browser-tab icon. -->
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="32" height="32" rx="8" fill="url(#brand)"/>
+  <g transform="translate(6 6) scale(0.8333)" fill="#ffffff">
+    <rect x="2.5" y="13.5" width="5" height="7.5" rx="1.6" opacity="0.65"/>
+    <rect x="9.5" y="8.5" width="5" height="12.5" rx="1.6" opacity="0.85"/>
+    <rect x="16.5" y="3" width="5" height="18" rx="1.6"/>
+  </g>
+</svg>
