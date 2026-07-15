@@ -14,7 +14,9 @@ async function request(path, options = {}) {
 
   if (!res.ok) {
     const message = (data && data.error) || `Request failed (${res.status})`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status; // so callers can special-case e.g. 503 (not configured)
+    throw err;
   }
   return data;
 }
@@ -32,6 +34,14 @@ export const api = {
 export const AuthAPI = {
   login: (email, password) => api.post("/api/auth/login", { email, password }),
   register: (payload) => api.post("/api/auth/register", payload),
+};
+
+// Sign-up email verification (OTP). send() returns a signed token; verify()
+// checks the code against it. A 503 means email isn't configured -> the
+// sign-up page falls back to an on-screen demo code.
+export const EmailOtpAPI = {
+  send: (email) => api.post("/api/email-otp/send", { email }),
+  verify: (email, code, token) => api.post("/api/email-otp/verify", { email, code, token }),
 };
 
 export const PostsAPI = {
@@ -97,6 +107,28 @@ export const FocusAPI = {
 // AI study help: backend proxies the n8n webhook (Cisco NetAcad lookup) and caches results.
 export const HelpAPI = {
   recommend: (query) => api.post("/api/help/recommend", { query }),
+};
+
+// Gamification: level, XP, streak, badges, growth journey + AI motivation.
+// Everything is derived server-side from the student's real activity
+// (completed tasks/habits, posts, upvotes) — see backend/config/gamification.js.
+export const GamificationAPI = {
+  summary: (userId) => api.get(`/api/gamification?userId=${userId}`),
+};
+
+// Flash Quiz: topics + questions derived from the student's study plans.
+// Returns { fromPlans, topics: [{ id, name, emoji, questions:[{q,options,answer}] }] }.
+export const QuizAPI = {
+  topics: (userId) => api.get(`/api/quiz?userId=${userId}`),
+};
+
+// Speed Sorting Challenge: sets of terms to sort into category bins. Built-in
+// sets match the student's study plans; uploaded sets are parsed from a revision
+// file. Returns { fromPlans, sets: [{ id, title, emoji, source, categories, items }] }.
+export const SortingAPI = {
+  list: (userId) => api.get(`/api/sorting?userId=${userId}`),
+  upload: (payload) => api.post("/api/sorting/upload", payload), // { userId, filename, content }
+  remove: (id, userId) => api.del(`/api/sorting/${id}`, { userId }),
 };
 
 export const AdminAPI = {

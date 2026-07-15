@@ -2,8 +2,8 @@
 // Advice Forum — Done by Andrea Ho
 // A Reddit-style Q&A shown as ONE card per question: the post sits at the top
 // with an up/down vote pill, and the replies ladder underneath in the same
-// box. Each reply has the same vote pill, plus "Add to study planner" which
-// turns a senior's advice into a real Study Plan (rewrite + bullet steps).
+// box. Each reply has the same vote pill, plus "Add to Habit Tracker" which
+// turns a senior's advice into a personal habit (rewrite it + pick a frequency).
 import React, { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import Card from "@/components/Card";
@@ -13,8 +13,8 @@ import ApiErrorBanner from "@/components/ApiErrorBanner";
 import Badge from "@/components/Badge";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/lib/auth";
-import { PostsAPI, CommentsAPI, AdminAPI, PlansAPI } from "@/lib/api";
-import { PlusIcon, SearchIcon, CheckIcon, XIcon, ShieldIcon, UpIcon, DownIcon, BookIcon } from "@/lib/icons";
+import { PostsAPI, CommentsAPI, AdminAPI, HabitsAPI } from "@/lib/api";
+import { PlusIcon, SearchIcon, CheckIcon, XIcon, ShieldIcon, UpIcon, DownIcon, TargetIcon } from "@/lib/icons";
 
 // Study-focused categories only (Done by Andrea Ho).
 const CATEGORIES = [
@@ -60,10 +60,11 @@ export default function ForumPage() {
   const [editingComment, setEditingComment] = useState(null);
   const [editCommentText, setEditCommentText] = useState("");
 
-  // "Add to my study planner" modal (Done by Andrea Ho): rewrite a reply,
-  // break it into bullet steps, pick a frequency -> creates a Study Plan.
-  const [plannerComment, setPlannerComment] = useState(null);
-  const [plannerForm, setPlannerForm] = useState({ title: "", bullets: [""], frequency: "Daily" });
+  // "Add to Habit Tracker" modal (Done by Andrea Ho): rewrite a senior's reply
+  // in your own words, pick a frequency -> creates a habit in the tracker,
+  // linked back to the post it came from (sourcePostId).
+  const [trackerComment, setTrackerComment] = useState(null);
+  const [trackerForm, setTrackerForm] = useState({ name: "", frequency: "Daily" });
 
   async function load() {
     if (!user?.id) return; // wait until the logged-in user is known
@@ -135,33 +136,27 @@ export default function ForumPage() {
     } catch (err) { setError(err.message); }
   }
 
-  // ---- Add a reply to my Study Planner (Done by Andrea Ho) ----
-  function openPlanner(c) {
-    setPlannerComment(c);
-    setPlannerForm({ title: "", bullets: [""], frequency: "Daily" });
+  // ---- Add a reply to my Habit Tracker (Done by Andrea Ho) ----
+  // Opens the modal pre-filled with the senior's words so the user can rewrite
+  // it into a habit they'll actually do.
+  function openTracker(c) {
+    setTrackerComment(c);
+    setTrackerForm({ name: c.text.slice(0, 80), frequency: "Daily" });
   }
-  function setBullet(i, value) {
-    setPlannerForm((f) => { const bullets = [...f.bullets]; bullets[i] = value; return { ...f, bullets }; });
-  }
-  function addBullet() { setPlannerForm((f) => ({ ...f, bullets: [...f.bullets, ""] })); }
-  function removeBullet(i) { setPlannerForm((f) => ({ ...f, bullets: f.bullets.filter((_, idx) => idx !== i) })); }
 
-  async function confirmAddToPlanner(e) {
+  async function confirmAddToTracker(e) {
     e.preventDefault();
-    const bullets = plannerForm.bullets.map((b) => b.trim()).filter(Boolean);
     try {
-      // Creates a Study Plan whose lessons are the bullet steps, linked back
-      // to the question it came from.
-      await PlansAPI.create({
+      // Creates a habit in the tracker, linked back to the post it came from
+      // (sourcePostId) so the tracker can show a "from advice" badge.
+      await HabitsAPI.create({
         userId: user.id,
-        name: plannerForm.title || plannerComment.text.slice(0, 80),
-        module: "From forum advice",
-        frequency: plannerForm.frequency,
-        sourcePostId: plannerComment.postId || null,
-        lessons: bullets,
+        name: trackerForm.name || trackerComment.text.slice(0, 80),
+        frequency: trackerForm.frequency,
+        sourcePostId: trackerComment.postId || null,
       });
-      flash("Added to your study planner!");
-      setPlannerComment(null);
+      flash("Added to your habit tracker!");
+      setTrackerComment(null);
     } catch (err) { setError(err.message); }
   }
 
@@ -319,8 +314,8 @@ export default function ForumPage() {
                       <div className="row gap-8 mt-8" style={{ flexWrap: "wrap", alignItems: "center" }}>
                         <VotePill up={c.likes} down={c.dislikes} voted={votedComments.has(c.id)}
                           onUp={() => voteComment(c, "up")} onDown={() => voteComment(c, "down")} />
-                        <Button size="sm" variant="primary" onClick={() => openPlanner(c)}>
-                          <BookIcon size={14} /> Add to study planner
+                        <Button size="sm" variant="primary" onClick={() => openTracker(c)}>
+                          <TargetIcon size={14} /> Add to Habit Tracker
                         </Button>
                         {canManageComment(c) && <Button size="sm" variant="ghost" onClick={() => handleEditComment(c)}>Edit</Button>}
                         {canManageComment(c) && <Button size="sm" variant="danger" onClick={() => handleDeleteComment(c)}>Delete</Button>}
@@ -400,39 +395,26 @@ export default function ForumPage() {
         )}
       </Modal>
 
-      {/* Add-to-study-planner modal (Done by Andrea Ho) */}
-      <Modal open={!!plannerComment} title="Add to my study planner" onClose={() => setPlannerComment(null)}>
-        {plannerComment && (
-          <form onSubmit={confirmAddToPlanner}>
+      {/* Add-to-Habit-Tracker modal (Done by Andrea Ho) */}
+      <Modal open={!!trackerComment} title="Add to Habit Tracker" onClose={() => setTrackerComment(null)}>
+        {trackerComment && (
+          <form onSubmit={confirmAddToTracker}>
             {/* The senior's original reply, so the user can adapt it. */}
             <div className="small muted mb-16" style={{ padding: "10px 12px", background: "var(--surface-2)", borderRadius: 10, borderLeft: "3px solid var(--primary)" }}>
-              <strong>{plannerComment.author}</strong> ({plannerComment.authorYear}) replied:<br />
-              &ldquo;{plannerComment.text}&rdquo;
+              <strong>{trackerComment.author}</strong> ({trackerComment.authorYear}) replied:<br />
+              &ldquo;{trackerComment.text}&rdquo;
             </div>
             <div className="field-group">
-              <label className="field">Plan name <span className="muted">(rewrite it in your own words)</span></label>
-              <input className="input" required value={plannerForm.title} onChange={(e) => setPlannerForm({ ...plannerForm, title: e.target.value })} placeholder="e.g. Practise Python on W3Schools" />
-            </div>
-            <div className="field-group">
-              <label className="field">Steps <span className="muted">(break it into small bullet tasks)</span></label>
-              <div className="stack gap-8">
-                {plannerForm.bullets.map((b, i) => (
-                  <div key={i} className="row gap-8">
-                    <span className="muted small" style={{ width: 14 }}>&bull;</span>
-                    <input className="input" value={b} onChange={(e) => setBullet(i, e.target.value)} placeholder={i === 0 ? "e.g. Finish 1 W3Schools Python exercise" : "Add another step"} />
-                    {plannerForm.bullets.length > 1 && <Button size="sm" variant="ghost" type="button" onClick={() => removeBullet(i)}><XIcon size={14} /></Button>}
-                  </div>
-                ))}
-              </div>
-              <Button size="sm" type="button" className="mt-8" onClick={addBullet}><PlusIcon size={14} /> Add step</Button>
+              <label className="field">Habit name <span className="muted">(rewrite it the way you&rsquo;ll actually do it)</span></label>
+              <textarea className="textarea" required rows={3} value={trackerForm.name} onChange={(e) => setTrackerForm({ ...trackerForm, name: e.target.value })} placeholder="e.g. Play 1 game of chess to de-stress" />
             </div>
             <div className="field-group">
               <label className="field">Frequency</label>
-              <select className="select" value={plannerForm.frequency} onChange={(e) => setPlannerForm({ ...plannerForm, frequency: e.target.value })}>
+              <select className="select" value={trackerForm.frequency} onChange={(e) => setTrackerForm({ ...trackerForm, frequency: e.target.value })}>
                 {["Daily", "Weekdays", "Weekly", "3x per week", "Monthly"].map((f) => <option key={f}>{f}</option>)}
               </select>
             </div>
-            <Button variant="primary" className="btn-block" type="submit">Add to study planner</Button>
+            <Button variant="primary" className="btn-block" type="submit">Add to Habit Tracker</Button>
           </form>
         )}
       </Modal>

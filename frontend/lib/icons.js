@@ -94,3 +94,33 @@ export const SettingsIcon = (p) => (
 export const ExternalIcon = (p) => (
   <svg {...base(p.size)}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14 21 3" /></svg>
 );
+export const TrophyIcon = (p) => (
+  <svg {...base(p.size)}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z" /><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" /></svg>
+);
+export const FlameIcon = (p) => (
+  <svg {...base(p.size)}><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1.5.6-2.8 1.3-3.8C9 8.5 12 8 12 6c0 1.5 1.2 2.3 2 3" /><path d="M12 22a4 4 0 0 0 4-4c0-2-2-3-4-6-2 3-4 4-4 6a4 4 0 0 0 4 4Z" /></svg>
+);
+export const ZapIcon = (p) => (
+  <svg {...base(p.size)}><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" /></svg>
+);
+export const StarIcon = (p) => (
+  <svg {...base(p.size)}><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.9 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9L12 2.5Z" /></svg>
+);
+export const LockIcon = (p) => (
+  <svg {...base(p.size)}><rect x="4.5" y="11" width="15" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+);
+export const CoinIcon = (p) => (
+  <svg {...base(p.size)}><circle cx="12" cy="12" r="9" /><path d="M12 7.5v9M9.5 9.5h3.2a1.8 1.8 0 0 1 0 3.6H9.8h3.1a1.8 1.8 0 0 1 0 3.6H9.5" /></svg>
+);
+export const GiftIcon = (p) => (
+  <svg {...base(p.size)}><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /><path d="M12 8S10.5 3 8 3a2.5 2.5 0 0 0 0 5h4Zm0 0s1.5-5 4-5a2.5 2.5 0 0 1 0 5h-4Z" /></svg>
+);
+export const PuzzleIcon = (p) => (
+  <svg {...base(p.size)}><path d="M9 3a2 2 0 0 1 4 0c0 .7-.3 1.3-.8 1.7.4.2.8.5.8 1.3v1h1a2 2 0 1 1 0 4h-1v3a2 2 0 0 1-2 2h-3v-1c0-.7-.6-1.3-1.5-1.3S5 15.3 5 16v1H4a2 2 0 0 1-2-2v-3H1a2 2 0 1 1 0-4h1V5a2 2 0 0 1 2-2h3c0-.4.2-.8.5-1.1" /></svg>
+);
+export const HeartIcon = (p) => (
+  <svg {...base(p.size)}><path d="M12 20.5S3.5 15 3.5 8.9A4.4 4.4 0 0 1 12 6a4.4 4.4 0 0 1 8.5 2.9C20.5 15 12 20.5 12 20.5Z" /></svg>
+);
+export const GamepadIcon = (p) => (
+  <svg {...base(p.size)}><path d="M7 8h10a5 5 0 0 1 5 5 3 3 0 0 1-5.3 1.9L15 13H9l-1.7 1.9A3 3 0 0 1 2 13a5 5 0 0 1 5-5Z" /><path d="M7 11v2M6 12h2M15 11h.01M17.5 12.5h.01" /></svg>
+);

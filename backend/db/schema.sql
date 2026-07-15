@@ -10,6 +10,9 @@
 
 -- CASCADE so it works even if a teammate created these tables with real
 -- foreign-key constraints; we recreate everything from scratch anyway.
+DROP TABLE IF EXISTS sorting_items CASCADE;
+DROP TABLE IF EXISTS sorting_sets CASCADE;
+DROP TABLE IF EXISTS quiz_questions CASCADE;
 DROP TABLE IF EXISTS recommendations CASCADE;
 DROP TABLE IF EXISTS netacad_courses CASCADE;
 DROP TABLE IF EXISTS focus_sessions CASCADE;
@@ -179,6 +182,44 @@ CREATE TABLE focus_sessions (
   date        DATE NOT NULL
 );
 
+-- Flash Quiz question bank, keyed by `subject`. A subject is matched
+-- (case-insensitively) to a student's study-plan names (see `study_plans`
+-- above) to decide which topics appear in the game. "correctIndex" is 0..3
+-- into ("optionA", "optionB", "optionC", "optionD").
+CREATE TABLE quiz_questions (
+  id             SERIAL PRIMARY KEY,
+  subject        VARCHAR(120) NOT NULL,
+  question       VARCHAR(400) NOT NULL,
+  "optionA"      VARCHAR(200) NOT NULL,
+  "optionB"      VARCHAR(200) NOT NULL,
+  "optionC"      VARCHAR(200) NOT NULL,
+  "optionD"      VARCHAR(200) NOT NULL,
+  "correctIndex" SMALLINT NOT NULL
+);
+CREATE INDEX idx_quiz_subject ON quiz_questions (subject);
+
+-- Speed Sorting Challenge. A "set" is a collection of terms that each belong to
+-- a category; the game asks the player to sort terms into the right category
+-- bins against the clock. Built-in sets ("userId" NULL) are seeded per subject
+-- and matched to study plans; upload sets are parsed from a student's revision file.
+CREATE TABLE sorting_sets (
+  id          SERIAL PRIMARY KEY,
+  "userId"    INT NULL,
+  title       VARCHAR(160) NOT NULL,
+  subject     VARCHAR(120) NULL,   -- matched to study plans; NULL = general
+  source      VARCHAR(20) NOT NULL DEFAULT 'builtin' CHECK (source IN ('builtin', 'upload')),
+  filename    VARCHAR(200) NULL,
+  "createdAt" DATE
+);
+
+CREATE TABLE sorting_items (
+  id       SERIAL PRIMARY KEY,
+  "setId"  INT NOT NULL,
+  term     VARCHAR(160) NOT NULL,
+  category VARCHAR(120) NOT NULL
+);
+CREATE INDEX idx_sort_set ON sorting_items ("setId");
+
 -- ---- Seed data (matches the original in-memory mock content) ------------
 
 INSERT INTO users (id, name, email, password, "yearLevel", diploma, role, "createdAt") VALUES
@@ -188,15 +229,21 @@ INSERT INTO users (id, name, email, password, "yearLevel", diploma, role, "creat
   -- Year 1 student who asks for help on the forum (Done by Andrea Ho).
   (4, 'Bryan Lee',     'bryan@rp.edu.sg', 'password123', 'Year 1', 'Diploma in Information Technology', 'user',  '2026-01-08');
 
--- A single, clean demo thread: Bryan's question + Priya's reply (Done by Andrea Ho).
+-- Demo forum threads: a programming question and a stress-management question,
+-- each with a senior's reply (Done by Andrea Ho).
 INSERT INTO posts (id, "userId", author, "authorYear", title, category, content, "suggestedAction", status, upvotes, downvotes, "createdAt") VALUES
   (1, 4, 'Bryan Lee', 'Year 1', 'Struggling with Programming Fundamentals — any senior advice?', 'Programming practice',
    'Hi I am year 1 student so right now I am having problem with the programming fundamental course mostly right now. Can any seniors suggest any advices or solutions for this?',
-   NULL, 'approved', 12, 1, '2026-07-12');
+   NULL, 'approved', 12, 1, '2026-07-12'),
+  (2, 4, 'Bryan Lee', 'Year 1', 'How do you guys manage stress?', 'Study habits',
+   'Hi, I am year 1 and I just want to ask for like how you guys manage the stress??',
+   NULL, 'approved', 9, 0, '2026-07-14');
 
 INSERT INTO comments (id, "postId", "userId", author, "authorYear", text, likes, dislikes, "createdAt") VALUES
-  -- The senior's reply to Bryan that becomes a study plan in the demo.
-  (1, 1, 2, 'Priya Nair', 'Year 3', 'HII!! I just want to say that it is totally normal to struggle because I was in the same boat as you. At my time, I just went through this website called W3 School website. There they have like all these beginner programmes for python. I just practise using that. Hope this helps!.', 15, 0, '2026-07-12');
+  -- The senior's reply to Bryan's programming question (becomes a study plan in the demo).
+  (1, 1, 2, 'Priya Nair', 'Year 3', 'HII!! I just want to say that it is totally normal to struggle because I was in the same boat as you. At my time, I just went through this website called W3 School website. There they have like all these beginner programmes for python. I just practise using that. Hope this helps!.', 15, 0, '2026-07-12'),
+  -- The senior's reply to the stress question.
+  (2, 2, 2, 'Priya Nair', 'Year 3', 'FOr me meditation works the same for me or doing what you love. For my case is just playing chess.Hope this helps', 11, 0, '2026-07-14');
 
 INSERT INTO habits (id, "userId", "sourcePostId", name, frequency, status, progress, "createdAt") VALUES
   (1, 1, 3,    'Start hard tasks with 2 focused minutes', 'Daily',    'active',    60, '2026-02-19'),
@@ -204,18 +251,42 @@ INSERT INTO habits (id, "userId", "sourcePostId", name, frequency, status, progr
   (3, 1, NULL, 'Read 10 pages of a textbook',             'Daily',    'paused',    25, '2026-02-22'),
   (4, 1, 2,    'Recap yesterday''s topic for 20 minutes', 'Daily',    'completed', 100, '2026-02-16');
 
-INSERT INTO calendar_tasks (id, "userId", "habitId", title, date, time, completed) VALUES
-  (1, 1, 2,    'Solve one coding problem',       '2026-07-01', '08:00', FALSE),
-  (2, 1, 1,    '2-minute start on assignment',   '2026-07-01', '14:00', TRUE),
-  (3, 1, NULL, 'Build one small project (weekly)', '2026-07-03', '19:00', FALSE),
-  (4, 1, 4,    'Recap yesterday''s topic',       '2026-07-02', '20:00', FALSE),
-  (5, 1, 2,    'Solve one coding problem',       '2026-07-04', '08:00', FALSE);
+-- Calendar tasks: some come from habits (orange), some from study plans
+-- (purple), some are plain (WK). habitId / planId link them to their source.
+-- Rows 8+ are a run of completed daily study tasks (2026-06-25 → 07-12) that
+-- gives Alex an 18-day streak on the Progress page. Today (07-13) is left
+-- incomplete on purpose, so the "keep your streak alive" nudge shows.
+INSERT INTO calendar_tasks (id, "userId", "habitId", "planId", title, date, time, completed) VALUES
+  (1, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-01', '08:00', FALSE),
+  (2, 1, 1,    NULL, '2-minute start on assignment',     '2026-07-01', '14:00', TRUE),
+  (3, 1, NULL, NULL, 'Build one small project (weekly)', '2026-07-03', '19:00', FALSE),
+  (4, 1, 4,    NULL, 'Recap yesterday''s topic',         '2026-07-02', '20:00', TRUE),
+  (5, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-04', '08:00', TRUE),
+  (6, 1, NULL, 1,    'Biology revision',                 '2026-07-02', '16:00', FALSE),
+  (7, 1, NULL, 2,    'Operating Systems review',         '2026-07-03', '10:00', TRUE),
+  (8,  1, 2,    NULL, 'Solve one coding problem',         '2026-06-25', '08:00', TRUE),
+  (9,  1, 4,    NULL, 'Recap yesterday''s topic',         '2026-06-26', '20:00', TRUE),
+  (10, 1, 1,    NULL, '2-minute start on assignment',     '2026-06-27', '14:00', TRUE),
+  (11, 1, 3,    NULL, 'Read 10 pages of a textbook',      '2026-06-28', '21:00', TRUE),
+  (12, 1, 2,    NULL, 'Solve one coding problem',         '2026-06-29', '08:00', TRUE),
+  (13, 1, 4,    NULL, 'Recap yesterday''s topic',         '2026-06-30', '20:00', TRUE),
+  (14, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-05', '08:00', TRUE),
+  (15, 1, 1,    NULL, '2-minute start on assignment',     '2026-07-06', '14:00', TRUE),
+  (16, 1, 3,    NULL, 'Read 10 pages of a textbook',      '2026-07-07', '21:00', TRUE),
+  (17, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-08', '08:00', TRUE),
+  (18, 1, 4,    NULL, 'Recap yesterday''s topic',         '2026-07-09', '20:00', TRUE),
+  (19, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-10', '08:00', TRUE),
+  (20, 1, 1,    NULL, '2-minute start on assignment',     '2026-07-11', '14:00', TRUE),
+  (21, 1, 3,    NULL, 'Read 10 pages of a textbook',      '2026-07-12', '21:00', TRUE),
+  (22, 1, 2,    NULL, 'Solve one coding problem',         '2026-07-13', '08:00', FALSE),
+  (23, 1, NULL, NULL, 'Recap yesterday''s topic',         '2026-07-15', '20:00', FALSE);
 
 INSERT INTO admin_requests (id, "userId", name, reason, status, "reviewedBy", "reviewedAt") VALUES
   (1, 2, 'Priya Nair', 'I help moderate the study-habits category and would like moderator access.', 'pending', NULL, NULL);
 
 INSERT INTO reports (id, "postId", "reportedBy", reason, status) VALUES
-  (1, 1, 'Alex Tan', 'Flagged for moderator review.', 'open');
+  (1, 1, 'Alex Tan', 'Flagged for moderator review.', 'open'),
+  (2, 4, 'Priya Nair', 'Possible duplicate of another coding-practice post.', 'open');
 
 -- The NetAcad courses I have taken so far. Done by Khaing Khant Zaw.
 INSERT INTO netacad_courses (id, name, provider, level, format, hours, description, topics, url) VALUES
@@ -236,8 +307,9 @@ INSERT INTO netacad_courses (id, name, provider, level, format, hours, descripti
    'devnet, devops, automation, api, apis, rest, python, networking, software development, cicd',
    'https://www.netacad.com/courses/devnet-associate');
 
--- Study plans + lessons for Alex (userId 1). Matches the dashboard numbers:
--- 2 plans, 3 of 8 lessons completed.
+-- Alex's study plans. "Operating Systems" has a matching quiz_questions bank
+-- below, so the Flash Quiz / Speed Sort can offer that topic; "Biology" does
+-- not yet, so those games fall back to showing every available subject.
 INSERT INTO study_plans (id, "userId", name, module, "createdAt") VALUES
   (1, 1, 'Biology',           'C205 Biology Fundamentals', '2026-02-15'),
   (2, 1, 'Operating Systems', 'C270 Operating Systems',    '2026-02-18');
@@ -259,6 +331,117 @@ INSERT INTO focus_sessions ("userId", "habitId", "habitName", minutes, date) VAL
   (1, 4,    'Recap yesterday''s topic for 20 minutes', 45, CURRENT_DATE),
   (1, 2,    'Solve one coding problem each weekday', 25, CURRENT_DATE - 8);
 
+-- Flash Quiz question bank. Subjects here are matched to study-plan names.
+INSERT INTO quiz_questions (subject, question, "optionA", "optionB", "optionC", "optionD", "correctIndex") VALUES
+  -- Programming
+  ('Programming', 'Which data structure works on a Last-In-First-Out basis?', 'Queue', 'Stack', 'Array', 'Tree', 1),
+  ('Programming', 'What does a ''for'' loop primarily provide?', 'Decision making', 'Repetition', 'Data storage', 'Error handling', 1),
+  ('Programming', 'What is the time complexity of binary search?', 'O(n)', 'O(n squared)', 'O(log n)', 'O(1)', 2),
+  ('Programming', 'Which keyword defines a reusable block of code?', 'loop', 'function', 'class', 'return', 1),
+  ('Programming', 'A variable that only exists inside a function is called…', 'Global', 'Static', 'Local', 'Constant', 2),
+  ('Programming', 'Which symbol denotes a single-line comment in JavaScript?', '#', '//', '<!--', '**', 1),
+  -- Networking
+  ('Networking', 'Which layer of the OSI model handles routing?', 'Transport', 'Network', 'Data Link', 'Session', 1),
+  ('Networking', 'What does ''IP'' stand for?', 'Internet Protocol', 'Internal Process', 'Instant Packet', 'Input Port', 0),
+  ('Networking', 'Which device forwards packets between different networks?', 'Switch', 'Hub', 'Router', 'Repeater', 2),
+  ('Networking', 'How many bits are in an IPv4 address?', '16', '32', '64', '128', 1),
+  ('Networking', 'Which protocol is connection-oriented and reliable?', 'UDP', 'ICMP', 'TCP', 'ARP', 2),
+  ('Networking', 'What port does HTTPS use by default?', '21', '80', '443', '25', 2),
+  -- Databases
+  ('Databases', 'Which SQL keyword retrieves data from a table?', 'GET', 'SELECT', 'FETCH', 'PULL', 1),
+  ('Databases', 'A column that uniquely identifies each row is a…', 'Foreign key', 'Index', 'Primary key', 'View', 2),
+  ('Databases', 'Which clause filters rows in a query?', 'ORDER BY', 'GROUP BY', 'WHERE', 'HAVING', 2),
+  ('Databases', 'What does normalization mainly reduce?', 'Speed', 'Redundancy', 'Security', 'Storage cost only', 1),
+  ('Databases', 'Which JOIN returns only matching rows in both tables?', 'LEFT JOIN', 'INNER JOIN', 'FULL JOIN', 'CROSS JOIN', 1),
+  -- Operating Systems
+  ('Operating Systems', 'Which component decides which process uses the CPU next?', 'Compiler', 'CPU scheduler', 'Linker', 'Loader', 1),
+  ('Operating Systems', 'Which is NOT a typical process state?', 'Ready', 'Running', 'Waiting', 'Compiling', 3),
+  ('Operating Systems', 'Virtual memory lets a system…', 'Delete files', 'Use disk as extra RAM', 'Overclock the CPU', 'Encrypt data', 1),
+  ('Operating Systems', 'Which is a required condition for deadlock?', 'Mutual exclusion', 'Infinite loops', 'High CPU usage', 'Fast disk', 0),
+  ('Operating Systems', 'What unit does the OS schedule for execution?', 'File', 'Process', 'Folder', 'Driver', 1),
+  -- Study Skills (available if a student adds this as a plan)
+  ('Study Skills', 'The Pomodoro technique alternates focus with…', 'Naps', 'Short breaks', 'Snacks', 'Music', 1),
+  ('Study Skills', 'Recalling information from memory instead of re-reading is…', 'Cramming', 'Active recall', 'Skimming', 'Highlighting', 1),
+  ('Study Skills', 'Spacing revision over days rather than one session is…', 'Massed practice', 'Spaced repetition', 'Interleaving', 'Chunking', 1),
+  ('Study Skills', 'Which is the healthiest study habit?', 'All-nighters', 'Consistent daily reviews', 'Multitasking', 'Skipping breaks', 1),
+  ('Study Skills', 'Teaching a topic to someone else mainly improves…', 'Speed', 'Understanding', 'Typing', 'Grades only', 1);
+
+-- Speed Sorting sets. Subject-tagged ones (Programming … Operating Systems) match
+-- Alex's study plans; the NULL-subject ones (Animals, Chemistry) are general and
+-- always available. Upload sets get added at runtime by students.
+INSERT INTO sorting_sets (id, "userId", title, subject, source, filename, "createdAt") VALUES
+  (1, NULL, 'Programming Concepts',            'Programming',       'builtin', NULL, '2026-01-10'),
+  (2, NULL, 'Networking Essentials',           'Networking',        'builtin', NULL, '2026-01-10'),
+  (3, NULL, 'Database Basics',                 'Databases',         'builtin', NULL, '2026-01-10'),
+  (4, NULL, 'Operating Systems',               'Operating Systems', 'builtin', NULL, '2026-01-10'),
+  (5, NULL, 'Animal Classes',                  NULL,                'builtin', NULL, '2026-01-10'),
+  (6, NULL, 'Chemistry: Acids, Bases & Salts', NULL,                'builtin', NULL, '2026-01-10');
+
+INSERT INTO sorting_items ("setId", term, category) VALUES
+  -- Programming
+  (1, 'let score = 0',            'Variable'),
+  (1, 'const name = "Ada"',       'Variable'),
+  (1, 'int count;',               'Variable'),
+  (1, 'function add(a, b)',       'Function'),
+  (1, 'def greet():',             'Function'),
+  (1, 'return total',             'Function'),
+  (1, 'for (i = 0; i < n; i++)',  'Loop'),
+  (1, 'while (running)',          'Loop'),
+  (1, 'items.forEach(...)',       'Loop'),
+  (1, 'if (x > 5)',               'Condition'),
+  (1, 'else if (y)',              'Condition'),
+  (1, 'switch (day)',             'Condition'),
+  -- Networking
+  (2, 'Router',        'Device'),
+  (2, 'Switch',        'Device'),
+  (2, 'Firewall',      'Device'),
+  (2, 'TCP',           'Protocol'),
+  (2, 'HTTP',          'Protocol'),
+  (2, 'DNS',           'Protocol'),
+  (2, 'IPv4 address',  'Addressing'),
+  (2, 'MAC address',   'Addressing'),
+  (2, 'Subnet mask',   'Addressing'),
+  -- Databases
+  (3, 'SELECT',       'SQL Command'),
+  (3, 'INSERT',       'SQL Command'),
+  (3, 'UPDATE',       'SQL Command'),
+  (3, 'PRIMARY KEY',  'Constraint'),
+  (3, 'FOREIGN KEY',  'Constraint'),
+  (3, 'NOT NULL',     'Constraint'),
+  (3, 'INNER JOIN',   'Join'),
+  (3, 'LEFT JOIN',    'Join'),
+  (3, 'CROSS JOIN',   'Join'),
+  -- Operating Systems
+  (4, 'Ready',                    'Process State'),
+  (4, 'Running',                  'Process State'),
+  (4, 'Waiting',                  'Process State'),
+  (4, 'Round Robin',              'Scheduler'),
+  (4, 'First-Come First-Served',  'Scheduler'),
+  (4, 'Priority',                 'Scheduler'),
+  (4, 'Paging',                   'Memory'),
+  (4, 'Segmentation',             'Memory'),
+  (4, 'Swapping',                 'Memory'),
+  -- Animals
+  (5, 'Dog',        'Mammal'),
+  (5, 'Whale',      'Mammal'),
+  (5, 'Bat',        'Mammal'),
+  (5, 'Snake',      'Reptile'),
+  (5, 'Lizard',     'Reptile'),
+  (5, 'Crocodile',  'Reptile'),
+  (5, 'Eagle',      'Bird'),
+  (5, 'Penguin',    'Bird'),
+  (5, 'Owl',        'Bird'),
+  -- Chemistry
+  (6, 'HCl',         'Acid'),
+  (6, 'H2SO4',       'Acid'),
+  (6, 'Citric acid', 'Acid'),
+  (6, 'NaOH',        'Base'),
+  (6, 'KOH',         'Base'),
+  (6, 'Ammonia',     'Base'),
+  (6, 'NaCl',        'Salt'),
+  (6, 'KNO3',        'Salt'),
+  (6, 'CaCO3',       'Salt');
+
 -- Seeding used explicit ids, so move each table's auto-increment sequence
 -- past them (otherwise the next INSERT would reuse id 1 and fail).
 SELECT setval(pg_get_serial_sequence('users', 'id'),           (SELECT MAX(id) FROM users));
@@ -271,3 +454,7 @@ SELECT setval(pg_get_serial_sequence('reports', 'id'),         (SELECT MAX(id) F
 SELECT setval(pg_get_serial_sequence('netacad_courses', 'id'), (SELECT MAX(id) FROM netacad_courses));
 SELECT setval(pg_get_serial_sequence('study_plans', 'id'),     (SELECT MAX(id) FROM study_plans));
 SELECT setval(pg_get_serial_sequence('lessons', 'id'),         (SELECT MAX(id) FROM lessons));
+SELECT setval(pg_get_serial_sequence('focus_sessions', 'id'),  (SELECT MAX(id) FROM focus_sessions));
+SELECT setval(pg_get_serial_sequence('quiz_questions', 'id'),  (SELECT MAX(id) FROM quiz_questions));
+SELECT setval(pg_get_serial_sequence('sorting_sets', 'id'),    (SELECT MAX(id) FROM sorting_sets));
+SELECT setval(pg_get_serial_sequence('sorting_items', 'id'),   (SELECT MAX(id) FROM sorting_items));

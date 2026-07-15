@@ -15,6 +15,7 @@ import Button from "@/components/Button";
 import Badge from "@/components/Badge";
 import DashboardStatCard from "@/components/DashboardStatCard";
 import ApiErrorBanner from "@/components/ApiErrorBanner";
+import GamificationStrip from "@/components/gamification/GamificationStrip";
 import { useAuth } from "@/lib/auth";
 import { useMode } from "@/lib/mode";
 import { HabitsAPI, CalendarAPI, PostsAPI, PlansAPI, FocusAPI } from "@/lib/api";
@@ -86,6 +87,9 @@ export default function DashboardPage() {
         : "Here's how your habits are coming along."}
     >
       <ApiErrorBanner error={error} onRetry={load} />
+
+      {/* Gamification: a compact progress strip linking to the full page. */}
+      <GamificationStrip />
 
       {mode === "study" ? (
         <>

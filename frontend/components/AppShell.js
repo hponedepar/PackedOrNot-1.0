@@ -18,6 +18,7 @@ const HABIT_ONLY = ["/tracker"];
 // Drives the underline below the page title via the --accent CSS variable.
 const ACCENTS = {
   "/dashboard": "#6366f1",
+  "/progress": "#ca8a04",
   "/forum": "#0d9488",
   "/tracker": "#ea580c",
   "/plans": "#7c3aed",

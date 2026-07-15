@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useMode } from "@/lib/mode";
-import { HomeIcon, ForumIcon, TrackerIcon, CalendarIcon, ShieldIcon, BookIcon, ClockIcon, SparkIcon, SettingsIcon, ChevronDownIcon } from "@/lib/icons";
+import { HomeIcon, ForumIcon, TrackerIcon, CalendarIcon, ShieldIcon, BookIcon, ClockIcon, SparkIcon, SettingsIcon, ChevronDownIcon, TrophyIcon } from "@/lib/icons";
 
 // Each link declares which app modes it belongs to (see lib/mode.js) and its
 // own "highlighter" accent — every feature has a colour of its own, like a
@@ -16,6 +16,7 @@ const links = [
   { href: "/plans", label: "Study Plans", icon: BookIcon, modes: ["study"], fg: "#7c3aed", bg: "rgba(124, 58, 237, 0.12)" },
   { href: "/calendar", label: "Calendar", icon: CalendarIcon, modes: ["study", "habit"], fg: "#059669", bg: "rgba(5, 150, 105, 0.12)" },
   { href: "/timer", label: "Focus Timer", icon: ClockIcon, modes: ["study"], fg: "#e11d48", bg: "rgba(225, 29, 72, 0.10)" },
+  { href: "/progress", label: "Playground", icon: TrophyIcon, modes: ["study", "habit"], fg: "#ca8a04", bg: "rgba(202, 138, 4, 0.14)" },
   { href: "/help", label: "Study Help", icon: SparkIcon, modes: ["study"], fg: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },
 ];
 
