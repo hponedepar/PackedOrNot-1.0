@@ -8,21 +8,33 @@ async function getPlans(req, res) {
   res.json(plans);
 }
 
-// POST /api/plans  { userId, name, module, frequency?, sourcePostId?, lessons? }
-// lessons is an optional array of bullet-point titles (used by the forum's
-// "Add to my study planner" flow).
+// POST /api/plans  { userId, name, module?, message?, frequency?, sourcePostId?, lessons? }
+// `lessons` is an optional array of plan-item titles — each becomes its own row
+// in the lessons table, which is what the tick-boxes and the progress % read.
+// Used by both the New Study Plan form and the forum's "Add to Study Planner".
 async function createPlan(req, res) {
-  const { userId, name, module, frequency, sourcePostId, lessons } = req.body;
-  if (!userId || !name) {
-    return res.status(400).json({ error: "userId and name are required." });
+  const { userId, name, module, message, frequency, sourcePostId, lessons } = req.body;
+
+  // Subject name is required.
+  const subject = typeof name === "string" ? name.trim() : "";
+  if (!userId || !subject) {
+    return res.status(400).json({ error: "userId and a subject name are required." });
   }
+
+  // Drop blank plan items here too, so an empty box can never become a lesson
+  // even if the request didn't come from our own form.
+  const items = Array.isArray(lessons)
+    ? lessons.map((t) => (typeof t === "string" ? t.trim() : "")).filter(Boolean)
+    : [];
+
   const plan = await plansRepo.createPlan({
     userId: Number(userId),
-    name,
-    module: module || null,
+    name: subject,
+    module: (module && module.trim()) || null,
+    message: (message && message.trim()) || null,
     frequency: frequency || null,
     sourcePostId: sourcePostId ? Number(sourcePostId) : null,
-    lessons: Array.isArray(lessons) ? lessons : [],
+    lessons: items,
     createdAt: new Date().toISOString().slice(0, 10),
   });
   res.status(201).json(plan);

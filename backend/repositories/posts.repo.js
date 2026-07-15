@@ -13,11 +13,19 @@ function isPostUpvotedByUser(postId, userId) {
   return Boolean(userId && getVoteSet(postId).has(Number(userId)));
 }
 
-// Approved posts with optional category + search filtering, newest first.
-async function findApproved({ category, search, userId }) {
+// Approved posts with optional forum / category / search filtering, newest first.
+//
+// `forumType` keeps the Study and Habit forums completely separate: the split
+// happens here in SQL, so a habit question can never reach the Study tab even
+// if the frontend asked for it. (Khaing Khant Zaw)
+async function findApproved({ category, search, userId, forumType }) {
   let sql = "SELECT p.*, 0 AS upvotedByUser FROM posts p WHERE p.status = 'approved'";
   const params = [];
 
+  if (forumType === "study" || forumType === "habit") {
+    sql += ' AND p."forumType" = ?';
+    params.push(forumType);
+  }
   if (category && category !== "All") {
     sql += " AND p.category = ?";
     params.push(category);
@@ -56,8 +64,8 @@ async function findByStatus(status) {
 
 async function create(data) {
   const [rows] = await pool.query(
-    `INSERT INTO posts ("userId", author, "authorYear", title, category, content, "suggestedAction", status, upvotes, "createdAt")
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?) RETURNING id`,
+    `INSERT INTO posts ("userId", author, "authorYear", title, category, content, "suggestedAction", status, "forumType", upvotes, "createdAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?) RETURNING id`,
     [
       data.userId,
       data.author,
@@ -67,6 +75,7 @@ async function create(data) {
       data.content,
       data.suggestedAction,
       data.status,
+      data.forumType,
       data.createdAt,
     ]
   );
@@ -75,7 +84,7 @@ async function create(data) {
 
 // Update only the fields provided (undefined fields are ignored).
 async function update(id, fields) {
-  const allowed = ["title", "category", "content", "suggestedAction", "status", "upvotes"];
+  const allowed = ["title", "category", "content", "suggestedAction", "status", "forumType", "upvotes"];
   const sets = [];
   const params = [];
   for (const key of allowed) {

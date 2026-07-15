@@ -14,6 +14,19 @@ const pgPool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // Supabase requires SSL; this keeps it simple for the prototype.
   ssl: { rejectUnauthorized: false },
+  // Supabase's pooler hangs up on connections that sit unused. Recycle ours
+  // first so we hand back a live connection instead of a dead one.
+  idleTimeoutMillis: 10000,
+  keepAlive: true,
+});
+
+// Supabase drops idle connections, and pg reports that by emitting "error" on
+// the pool. With no listener, Node treats it as an unhandled 'error' event and
+// kills the whole server — which is exactly what used to happen after the app
+// sat idle for a few minutes. Logging it lets pg discard the dead client and
+// open a fresh one on the next query. (Khaing Khant Zaw)
+pgPool.on("error", (err) => {
+  console.warn("  Postgres idle connection dropped (" + err.message + ") — pool will reconnect.");
 });
 
 // Small helper so the repositories can keep the same style they used before:

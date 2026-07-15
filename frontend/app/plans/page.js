@@ -20,16 +20,20 @@ import Modal from "@/components/Modal";
 import ApiErrorBanner from "@/components/ApiErrorBanner";
 import { useAuth } from "@/lib/auth";
 import { PlansAPI, CalendarAPI } from "@/lib/api";
-import { PlusIcon, BookIcon, CheckIcon, ChevronDownIcon, CalendarIcon, ClockIcon } from "@/lib/icons";
+import { PlusIcon, BookIcon, CheckIcon, ChevronDownIcon, CalendarIcon, ClockIcon, XIcon } from "@/lib/icons";
 
 // Today's date as "YYYY-MM-DD" (used to prefill the calendar date picker).
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
 // A plan's progress bar % = completed lessons / total lessons.
+// e.g. 2 of 4 plan items ticked -> 50%.
 function progressOf(plan) {
   if (!plan.lessons.length) return 0;
   return Math.round((plan.lessons.filter((l) => l.completed).length / plan.lessons.length) * 100);
 }
+
+// A blank New-study-plan form: one empty plan item to start with.
+const emptyForm = () => ({ name: "", module: "", message: "", items: [""] });
 
 export default function PlansPage() {
   const { user } = useAuth();
@@ -39,7 +43,9 @@ export default function PlansPage() {
   const [notice, setNotice] = useState("");
   const [expanded, setExpanded] = useState(null);      // which plan card is open
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", module: "" });
+  const [form, setForm] = useState(emptyForm());
+  const [formError, setFormError] = useState("");      // validation message inside the modal
+  const [saving, setSaving] = useState(false);         // blocks a double submit
   const [lessonFor, setLessonFor] = useState(null);    // plan we're adding a lesson to
   const [lessonTitle, setLessonTitle] = useState("");
   const [calendarFor, setCalendarFor] = useState(null); // plan being scheduled onto the calendar
@@ -56,14 +62,48 @@ export default function PlansPage() {
 
   function flash(msg) { setNotice(msg); setTimeout(() => setNotice(""), 3000); }
 
+  // ---- New study plan form: the "Plan 1, Plan 2, …" item list ----
+  function openCreate() { setForm(emptyForm()); setFormError(""); setShowCreate(true); }
+  function setItem(i, value) {
+    setForm((f) => ({ ...f, items: f.items.map((it, n) => (n === i ? value : it)) }));
+  }
+  function addItem() { setForm((f) => ({ ...f, items: [...f.items, ""] })); }
+  function removeItem(i) {
+    // Always keep at least one box on screen.
+    setForm((f) => (f.items.length <= 1 ? f : { ...f, items: f.items.filter((_, n) => n !== i) }));
+  }
+
   // ---- Create a plan ----
+  // Each non-empty plan item is sent as its own lesson, so it gets its own
+  // database row, its own tick-box, and counts towards the progress %.
   async function createPlan(e) {
     e.preventDefault();
+    if (saving) return;                                  // no duplicate submissions
+
+    const name = form.name.trim();
+    const items = form.items.map((t) => t.trim()).filter(Boolean); // blanks are never saved
+
+    if (!name) { setFormError("Please enter a subject name."); return; }
+    if (items.length === 0) { setFormError("Add at least one plan item."); return; }
+
+    setFormError(""); setSaving(true);
     try {
-      await PlansAPI.create({ userId: user.id, ...form });
-      setShowCreate(false); setForm({ name: "", module: "" });
+      await PlansAPI.create({
+        userId: user.id,
+        name,
+        module: form.module.trim(),
+        message: form.message.trim(),
+        lessons: items,
+      });
+      setShowCreate(false);
+      setForm(emptyForm());
+      flash(`Study plan "${name}" created with ${items.length} ${items.length === 1 ? "item" : "items"}.`);
       load();
-    } catch (err) { setError(err.message); }
+    } catch (err) {
+      setFormError(err.message);                          // keep the modal open so nothing is retyped
+    } finally {
+      setSaving(false);
+    }
   }
 
   // ---- Add a lesson (bullet topic) to a plan ----
@@ -125,7 +165,7 @@ export default function PlansPage() {
     <AppShell
       title="Study Plans"
       subtitle="Break each module into lessons, track your progress, and schedule or focus on it."
-      actions={<Button variant="primary" onClick={() => setShowCreate(true)}><PlusIcon size={16} /> New study plan</Button>}
+      actions={<Button variant="primary" onClick={openCreate}><PlusIcon size={16} /> New study plan</Button>}
     >
       <ApiErrorBanner error={error} onRetry={load} />
       {notice && <div className="banner mb-16" style={{ background: "var(--green-050)", color: "var(--green)", borderColor: "rgba(16,185,129,0.3)" }}>{notice}</div>}
@@ -165,12 +205,20 @@ export default function PlansPage() {
 
               {open && (
                 <div className="mt-16">
+                  {/* The objective the student wrote when creating the plan. */}
+                  {plan.message && (
+                    <p className="small muted mb-16" style={{ padding: "10px 12px", background: "var(--surface-2)", borderRadius: 10, borderLeft: "3px solid var(--primary)" }}>
+                      {plan.message}
+                    </p>
+                  )}
                   <div className="stack gap-8">
                     {plan.lessons.length === 0 && <p className="muted small">No lessons yet — add the topics you need to cover.</p>}
                     {plan.lessons.map((lesson) => (
                       <button
                         key={lesson.id}
                         onClick={() => toggleLesson(plan, lesson)}
+                        aria-pressed={lesson.completed}
+                        aria-label={`${lesson.completed ? "Mark as not done" : "Mark as done"}: ${lesson.title}`}
                         className="row gap-12"
                         style={{
                           padding: "10px 12px", background: "var(--surface-2)", borderRadius: 10,
@@ -204,18 +252,73 @@ export default function PlansPage() {
         })}
       </div>
 
-      {/* Create-plan modal */}
+      {/* Create-plan modal: subject + module + objective + the plan items */}
       <Modal open={showCreate} title="New study plan" onClose={() => setShowCreate(false)}>
         <form onSubmit={createPlan}>
+          {formError && (
+            <div className="banner mb-16" role="alert"
+              style={{ background: "var(--red-050)", color: "var(--red)", borderColor: "rgba(239,68,68,0.3)" }}>
+              {formError}
+            </div>
+          )}
+
           <div className="field-group">
-            <label className="field">Subject name</label>
-            <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Biology" />
+            <label className="field" htmlFor="p-name">Subject name</label>
+            <input id="p-name" className="input" required autoFocus
+              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Operating Systems" />
           </div>
+
           <div className="field-group">
-            <label className="field">Module <span className="muted">(optional)</span></label>
-            <input className="input" value={form.module} onChange={(e) => setForm({ ...form, module: e.target.value })} placeholder="e.g. C205 Biology Fundamentals" />
+            <label className="field" htmlFor="p-module">Module <span className="muted">(optional)</span></label>
+            <input id="p-module" className="input"
+              value={form.module} onChange={(e) => setForm({ ...form, module: e.target.value })}
+              placeholder="e.g. C235 IT Systems" />
           </div>
-          <Button variant="primary" className="btn-block" type="submit">Create plan</Button>
+
+          <div className="field-group">
+            <label className="field" htmlFor="p-message">Message or objective <span className="muted">(optional)</span></label>
+            <textarea id="p-message" className="textarea" rows={2}
+              value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })}
+              placeholder="e.g. I want to prepare for next week's assessment." />
+          </div>
+
+          {/* Plan items — one input each, added and removed as you go. Each
+              becomes a bullet you can tick off on its own. */}
+          <div className="field-group">
+            <label className="field" id="p-items-label">Plan items</label>
+            <div className="stack gap-8" role="group" aria-labelledby="p-items-label">
+              {form.items.map((item, i) => (
+                <div className="row gap-8" key={i}>
+                  <input
+                    className="input"
+                    value={item}
+                    onChange={(e) => setItem(i, e.target.value)}
+                    aria-label={`Plan ${i + 1}`}
+                    placeholder={`Plan ${i + 1}${i === 0 ? " — e.g. Review IPv4 addressing notes." : ""}`}
+                  />
+                  {/* The last remaining box can't be removed. */}
+                  {form.items.length > 1 && (
+                    <Button type="button" size="sm" variant="ghost"
+                      onClick={() => removeItem(i)}
+                      aria-label={`Remove plan ${i + 1}`} title={`Remove plan ${i + 1}`}>
+                      <XIcon size={15} />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button type="button" size="sm" className="mt-8" onClick={addItem}>
+              <PlusIcon size={14} /> Add another plan
+            </Button>
+            <p className="small muted mt-8" style={{ marginBottom: 0 }}>
+              Empty boxes are ignored. Progress is worked out from the items you tick off.
+            </p>
+          </div>
+
+          <Button variant="primary" className="btn-block" type="submit" disabled={saving}>
+            {saving ? "Creating…" : "Create plan"}
+          </Button>
         </form>
       </Modal>
 

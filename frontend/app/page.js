@@ -19,7 +19,9 @@ const flow = [
 export default function LandingPage() {
   return (
     <div>
-      <Navbar />
+      {/* Public page: header shows the logo + the ways in, never an account —
+          even if a previous session is still in localStorage. (Khaing Khant Zaw) */}
+      <Navbar isPublic />
 
       {/* Hero */}
       <section className="container" style={{ padding: "72px 24px 40px", textAlign: "center" }}>

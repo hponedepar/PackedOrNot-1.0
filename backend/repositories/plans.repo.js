@@ -25,13 +25,13 @@ async function findPlanById(id) {
 }
 
 // Create a plan. Optionally seed it with `lessons` (an array of bullet-point
-// titles) and mark where it came from (`sourcePostId`) — this is how forum
-// advice becomes a study plan with steps.
-async function createPlan({ userId, name, module, frequency, sourcePostId, createdAt, lessons }) {
+// titles), a `message` (the student's objective) and where it came from
+// (`sourcePostId`) — this is how forum advice becomes a study plan with steps.
+async function createPlan({ userId, name, module, message, frequency, sourcePostId, createdAt, lessons }) {
   const [rows] = await pool.query(
-    `INSERT INTO study_plans ("userId", name, module, frequency, "sourcePostId", "createdAt")
-     VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-    [userId, name, module, frequency, sourcePostId, createdAt]
+    `INSERT INTO study_plans ("userId", name, module, message, frequency, "sourcePostId", "createdAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    [userId, name, module, message, frequency, sourcePostId, createdAt]
   );
   const planId = rows[0].id;
 

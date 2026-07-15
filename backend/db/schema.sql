@@ -51,10 +51,15 @@ CREATE TABLE posts (
   content           TEXT NOT NULL,
   "suggestedAction" VARCHAR(255),
   status            VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'approved' | 'pending' | 'rejected'
+  -- Which forum the question lives in. The Study and Habit forums are kept
+  -- completely separate: every query filters on this. (Khaing Khant Zaw)
+  "forumType"       VARCHAR(10) NOT NULL DEFAULT 'study' CHECK ("forumType" IN ('study', 'habit')),
   upvotes           INT NOT NULL DEFAULT 0,
   downvotes         INT NOT NULL DEFAULT 0,   -- 👎 on the question (Andrea Ho)
   "createdAt"       DATE
 );
+
+CREATE INDEX posts_forumtype_idx ON posts ("forumType");
 
 CREATE TABLE comments (
   id           SERIAL PRIMARY KEY,
@@ -123,14 +128,16 @@ CREATE TABLE reports (
 -- so we keep the course info in our database and link out to the real site).
 CREATE TABLE netacad_courses (
   id          SERIAL PRIMARY KEY,
-  name        VARCHAR(160) NOT NULL,
+  name        VARCHAR(160) NOT NULL UNIQUE,
   provider    VARCHAR(160),
   level       VARCHAR(40),
   format      VARCHAR(80),
   hours       INT,           -- estimated course length
   description VARCHAR(500),
   topics      VARCHAR(300),  -- comma-separated keywords used for matching
-  url         VARCHAR(300)
+  url         VARCHAR(300),
+  image       VARCHAR(300),  -- optional banner image; NULL = use the CSS thumbnail
+  cost        VARCHAR(40) NOT NULL DEFAULT 'Free'
 );
 
 -- Cache of past answers, so repeated questions are instant and the demo
@@ -149,6 +156,7 @@ CREATE TABLE study_plans (
   "userId"       INT NOT NULL,
   name           VARCHAR(160) NOT NULL,
   module         VARCHAR(160),
+  message        TEXT,          -- the student's objective, e.g. "prepare for next week's test"
   frequency      VARCHAR(40),   -- how often to work on it (from the advice modal)
   "sourcePostId" INT NULL,      -- set when the plan was created from a forum post's advice
   "createdAt"    DATE
@@ -219,15 +227,16 @@ INSERT INTO users (id, name, email, password, "yearLevel", diploma, role, "creat
   -- Year 1 student who asks for help on the forum (Done by Andrea Ho).
   (4, 'Bryan Lee',     'bryan@rp.edu.sg', 'password123', 'Year 1', 'Diploma in Information Technology', 'user',  '2026-01-08');
 
--- Demo forum threads: a programming question and a stress-management question,
--- each with a senior's reply (Done by Andrea Ho).
-INSERT INTO posts (id, "userId", author, "authorYear", title, category, content, "suggestedAction", status, upvotes, downvotes, "createdAt") VALUES
+-- Demo forum threads (Done by Andrea Ho). The programming question lives in
+-- the Study forum; the stress question lives in the Habit forum — so each tab
+-- has real content and you can see the two are kept apart.
+INSERT INTO posts (id, "userId", author, "authorYear", title, category, content, "suggestedAction", status, "forumType", upvotes, downvotes, "createdAt") VALUES
   (1, 4, 'Bryan Lee', 'Year 1', 'Struggling with Programming Fundamentals — any senior advice?', 'Programming practice',
    'Hi I am year 1 student so right now I am having problem with the programming fundamental course mostly right now. Can any seniors suggest any advices or solutions for this?',
-   NULL, 'approved', 12, 1, '2026-07-12'),
-  (2, 4, 'Bryan Lee', 'Year 1', 'How do you guys manage stress?', 'Study habits',
+   NULL, 'approved', 'study', 12, 1, '2026-07-12'),
+  (2, 4, 'Bryan Lee', 'Year 1', 'How do you guys manage stress?', 'Mental wellness',
    'Hi, I am year 1 and I just want to ask for like how you guys manage the stress??',
-   NULL, 'approved', 9, 0, '2026-07-14');
+   NULL, 'approved', 'habit', 9, 0, '2026-07-14');
 
 INSERT INTO comments (id, "postId", "userId", author, "authorYear", text, likes, dislikes, "createdAt") VALUES
   -- The senior's reply to Bryan's programming question (becomes a study plan in the demo).
@@ -278,24 +287,83 @@ INSERT INTO reports (id, "postId", "reportedBy", reason, status) VALUES
   (1, 1, 'Alex Tan', 'Flagged for moderator review.', 'open'),
   (2, 4, 'Priya Nair', 'Possible duplicate of another coding-practice post.', 'open');
 
--- The NetAcad courses I have taken so far. Done by Khaing Khant Zaw.
+-- The Cisco NetAcad catalogue Study Help searches. Done by Khaing Khant Zaw.
+-- `topics` is the keyword list the matcher scores a student's question against,
+-- so it deliberately includes the words students actually type ("ip address",
+-- "loops", "linux commands") rather than only the official course wording.
 INSERT INTO netacad_courses (id, name, provider, level, format, hours, description, topics, url) VALUES
   (1, 'Networking Basics', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 22,
    'Start learning the basics of computer networking and discover how networks work, from your home Wi-Fi to the wider internet.',
-   'networking, network, networks, ip address, router, switch, wifi, internet, protocols, lan',
+   'networking, network, ip, ip address, ip addressing, subnet, subnetting, router, routing, switch, wifi, internet, protocol, lan, ethernet, dns, dhcp',
    'https://www.netacad.com/courses/networking-basics'),
   (2, 'Computer Hardware Basics', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 6,
    'Learn the basics of computer hardware and discover the components inside a computer and how they work together.',
-   'hardware, computer, components, cpu, ram, memory, storage, motherboard, pc, operating system',
+   'hardware, computer, component, cpu, ram, memory, storage, motherboard, pc, peripheral, troubleshooting',
    'https://www.netacad.com/courses/computer-hardware-basics'),
   (3, 'Python Essentials 1', 'Python Institute', 'Beginner', 'Self-paced', 40,
    'Learn fundamental concepts of computer programming and start building coding skills with the Python language.',
-   'python, programming, coding, code, variables, loops, functions, algorithms, basics',
+   'python, programming, coding, loop, loops, variable, variables, function, functions, condition, conditionals, syntax, list, string, beginner, algorithm',
    'https://www.netacad.com/courses/python-essentials-1'),
   (4, 'DevNet Associate (C270-005-AY2026S1)', 'Republic Polytechnic', 'Intermediate', 'Instructor-led', 70,
    'Get ready for the DevNet Associate certification and learn software development and automation for modern Cisco networks.',
    'devnet, devops, automation, api, apis, rest, python, networking, software development, cicd',
-   'https://www.netacad.com/courses/devnet-associate');
+   'https://www.netacad.com/courses/devnet-associate'),
+  (5, 'Networking Devices and Initial Configuration', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 24,
+   'Configure switches, routers and wireless devices, and take your first steps in building a small network.',
+   'networking device, switch, router, wireless, configuration, configure, cli, ios, initial setup, small network, vlan',
+   'https://www.netacad.com/courses/networking-devices-and-initial-configuration'),
+  (6, 'Introduction to Cybersecurity', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 6,
+   'Learn what cybersecurity is, why attacks happen, and how to protect your own data and privacy online.',
+   'cybersecurity, cyber, security, privacy, attack, threat, phishing, malware, data protection, online safety',
+   'https://www.netacad.com/courses/introduction-to-cybersecurity'),
+  (7, 'Cybersecurity Essentials', 'Cisco Networking Academy', 'Intermediate', 'Self-paced', 30,
+   'Build core cybersecurity skills: protecting networks and data, cryptography, and defending against threats.',
+   'cybersecurity, security, network security, securing, secure, cryptography, encryption, threat, vulnerability, defence, defense, confidentiality',
+   'https://www.netacad.com/courses/cybersecurity-essentials'),
+  (8, 'Operating Systems Basics', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 6,
+   'Understand what an operating system does, how it manages processes and memory, and how to work with files.',
+   'operating system, os, windows, process, processes, thread, memory, memory management, scheduling, file system, kernel, boot',
+   'https://www.netacad.com/courses/operating-systems-basics'),
+  (9, 'Linux Unhatched', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 8,
+   'Your very first look at Linux: try basic commands in a live environment and see what Linux is used for.',
+   'linux, introduction, first steps, try linux, beginner, unhatched, open source, distribution',
+   'https://www.netacad.com/courses/linux-unhatched'),
+  (10, 'Linux Essentials', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 70,
+   'Learn the Linux command line properly: commands, the shell, files, permissions and basic scripting.',
+   'linux, command, commands, command line, terminal, shell, bash, file, files, permission, permissions, scripting, script, directory, sudo, grep',
+   'https://www.netacad.com/courses/linux-essentials'),
+  (11, 'Python Essentials 2', 'Python Institute', 'Intermediate', 'Self-paced', 40,
+   'Go beyond the basics with modules, packages, exceptions, file handling and object-oriented programming.',
+   'python, module, modules, package, packages, exception, exceptions, oop, class, classes, object, inheritance, file handling, advanced python',
+   'https://www.netacad.com/courses/python-essentials-2'),
+  (12, 'JavaScript Essentials 1', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 30,
+   'Learn JavaScript from scratch and start making web pages interactive in the browser.',
+   'javascript, js, web, website, browser, dom, frontend, variable, function, event, html, interactive',
+   'https://www.netacad.com/courses/javascript-essentials-1'),
+  (13, 'Data Analytics Essentials', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 30,
+   'Learn how to collect, clean, analyse and visualise data so you can turn numbers into decisions.',
+   'data analytics, data, analytics, analysis, excel, sql, visualisation, visualization, dashboard, chart, statistics, dataset',
+   'https://www.netacad.com/courses/data-analytics-essentials'),
+  (14, 'Introduction to Data Science', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 6,
+   'Discover what data science is, what data scientists actually do, and how data drives real decisions.',
+   'data science, data, machine learning, ai, artificial intelligence, model, prediction, big data, dataset',
+   'https://www.netacad.com/courses/introduction-to-data-science'),
+  (15, 'Internet of Things', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 20,
+   'Explore how everyday devices connect, sense and share data, and how IoT systems are put together.',
+   'iot, internet of things, sensor, sensors, device, connected, smart home, embedded, automation, arduino, raspberry pi',
+   'https://www.netacad.com/courses/internet-of-things'),
+  (16, 'Endpoint Security', 'Cisco Networking Academy', 'Intermediate', 'Self-paced', 27,
+   'Secure the devices on a network: antivirus, hardening, access control and endpoint monitoring.',
+   'endpoint, endpoint security, antivirus, malware, hardening, access control, device security, patch, firewall, host',
+   'https://www.netacad.com/courses/endpoint-security'),
+  (17, 'Network Defense', 'Cisco Networking Academy', 'Intermediate', 'Self-paced', 27,
+   'Learn to defend a network: monitoring traffic, firewalls, access control lists and responding to attacks.',
+   'network defense, network defence, securing, secure, security, network security, firewall, monitoring, acl, intrusion, attack, incident response, protect network',
+   'https://www.netacad.com/courses/network-defense'),
+  (18, 'Cloud and Virtualization Concepts', 'Cisco Networking Academy', 'Beginner', 'Self-paced', 20,
+   'Understand virtual machines, containers and the cloud services modern applications actually run on.',
+   'cloud, virtualization, virtualisation, virtual machine, vm, container, docker, aws, azure, hypervisor, saas, server',
+   'https://www.netacad.com/courses/cloud-and-virtualization-concepts');
 
 -- Alex's study plans. "Operating Systems" has a matching quiz_questions bank
 -- below, so the Flash Quiz / Speed Sort can offer that topic; "Biology" does

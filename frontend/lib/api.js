@@ -45,14 +45,19 @@ export const EmailOtpAPI = {
 };
 
 export const PostsAPI = {
-  list: (category, search, userId) => {
+  // forumType ("study" | "habit") keeps the two forums apart — the backend
+  // filters on it in SQL, so the other forum's posts are never sent.
+  list: (category, search, userId, forumType) => {
     const params = new URLSearchParams();
+    if (forumType) params.set("forumType", forumType);
     if (category && category !== "All") params.set("category", category);
     if (search) params.set("search", search);
     if (userId) params.set("userId", String(userId));
     const q = params.toString();
     return api.get(`/api/posts${q ? "?" + q : ""}`);
   },
+  // { study: [...], habit: [...] } — the category chips for each forum.
+  categories: () => api.get("/api/posts/categories"),
   create: (payload) => api.post("/api/posts", payload),
   update: (id, payload) => api.put(`/api/posts/${id}`, payload),
   remove: (id, userId, role) => api.del(`/api/posts/${id}`, { userId, role }),
@@ -91,7 +96,9 @@ export const CalendarAPI = {
 // Study Plans: a plan (module) contains lessons; progress = completed/total.
 export const PlansAPI = {
   list: (userId) => api.get(`/api/plans?userId=${userId}`),
-  create: (payload) => api.post("/api/plans", payload),            // { userId, name, module }
+  // { userId, name, module?, message?, lessons?: string[] } — each entry in
+  // `lessons` becomes its own tickable plan item.
+  create: (payload) => api.post("/api/plans", payload),
   remove: (id) => api.del(`/api/plans/${id}`),
   addLesson: (planId, payload) => api.post(`/api/plans/${planId}/lessons`, payload), // { title }
   toggleLesson: (planId, lessonId, completed) =>
